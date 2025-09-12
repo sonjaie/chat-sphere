@@ -4,9 +4,10 @@ import Sidebar from "@/components/chat/sidebar";
 import ChatArea from "@/components/chat/chat-area";
 import ChatInfo from "@/components/chat/chat-info";
 import StoryViewer from "@/components/chat/story-viewer";
-import { AuthService, ChatService, MessageService, StoryService, TypingService } from "../lib";
+import { AuthService, ChatService, MessageService, StoryService, TypingService, PresenceService } from "../lib";
 import { supabase } from "../lib/supabase";
-import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser, TypingUser } from "../lib";
+import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser, TypingUser, PresenceUser } from "../lib";
+import type { ChatWithLastMessage, StoryWithUser, User } from "@shared/schema";
 
 export default function MessengerPage() {
   const [activeChat, setActiveChat] = useState<ChatWithDetails | null>(null);
@@ -235,6 +236,33 @@ export default function MessengerPage() {
     return unsubscribeTyping;
   }, [currentUser, activeChat]);
 
+  // Subscribe to presence updates
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log('Setting up presence subscription...');
+
+    // Listen for global presence updates
+    const handlePresenceUpdate = (event: CustomEvent) => {
+      const { user_id, status, last_seen } = event.detail;
+      console.log('Presence update received:', { user_id, status, last_seen });
+      
+      // Update the user list to reflect presence changes
+      refetchUsers();
+      
+      // If this is the active chat's other user, update the chat
+      if (activeChat?.otherUser?.id === user_id) {
+        refetchChats();
+      }
+    };
+
+    window.addEventListener('presenceUpdate', handlePresenceUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('presenceUpdate', handlePresenceUpdate as EventListener);
+    };
+  }, [currentUser, activeChat, refetchUsers, refetchChats]);
+
   // Set default active chat
   useEffect(() => {
     if (chats.length > 0 && !activeChat) {
@@ -381,6 +409,8 @@ export default function MessengerPage() {
 
   const handleLogout = async () => {
     try {
+      // Clean up presence before logout
+      await PresenceService.cleanup();
       await AuthService.signOut();
       // The auth state change will be handled by the auth context
       // and the user will be redirected to the login page
@@ -417,14 +447,14 @@ export default function MessengerPage() {
         ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <Sidebar
-          currentUser={currentUser}
-          chats={chats}
-          stories={stories}
-          activeChat={activeChat}
-          allUsers={allUsers}
-          onChatSelect={handleChatSelect}
-          onStorySelect={handleStorySelect}
-          onStartChat={handleStartChat}
+          currentUser={currentUser as unknown as User}
+          chats={chats as unknown as ChatWithLastMessage[]}
+          stories={stories as unknown as StoryWithUser[]}
+          activeChat={activeChat as unknown as ChatWithLastMessage | null}
+          allUsers={allUsers as unknown as User[]}
+          onChatSelect={handleChatSelect as unknown as (chat: ChatWithLastMessage) => void}
+          onStorySelect={handleStorySelect as unknown as (story: StoryWithUser) => void}
+          onStartChat={handleStartChat as unknown as (user: User) => void}
           onLogout={handleLogout}
           data-testid="sidebar"
         />
@@ -434,9 +464,9 @@ export default function MessengerPage() {
       <div className="flex-1 min-w-0 flex flex-col h-full">
         <ChatArea
           key={activeChat?.id || 'no-chat'}
-          activeChat={activeChat}
-          messages={messages}
-          currentUser={currentUser}
+          activeChat={activeChat as unknown as ChatWithLastMessage | null}
+          messages={messages as unknown as any[]}
+          currentUser={currentUser as unknown as User}
           typingUsers={typingUsers}
           onSendTyping={handleSendTyping}
           onSendMessage={handleSendMessage}
@@ -448,8 +478,8 @@ export default function MessengerPage() {
       {/* Chat Info Panel */}
       <div className="hidden xl:flex xl:w-80">
         <ChatInfo
-          activeChat={activeChat}
-          currentUser={currentUser}
+          activeChat={activeChat as unknown as ChatWithLastMessage | null}
+          currentUser={currentUser as unknown as User}
           data-testid="chat-info"
         />
       </div>
@@ -457,7 +487,7 @@ export default function MessengerPage() {
       {/* Story Viewer Modal */}
       {selectedStory && (
         <StoryViewer
-          story={selectedStory}
+          story={selectedStory as unknown as StoryWithUser}
           onClose={() => setSelectedStory(null)}
           data-testid="story-viewer"
         />

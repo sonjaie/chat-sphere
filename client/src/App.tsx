@@ -7,13 +7,26 @@ import { AuthForm } from "@/components/auth/auth-form";
 import MessengerPage from "@/pages/messenger";
 import NotFound from "@/pages/not-found";
 import { useQuery } from "@tanstack/react-query";
-import { AuthService } from "./lib";
+import { AuthService, PresenceService } from "./lib";
+import { useEffect } from "react";
 
 function Router() {
   const { data: currentUser, isLoading } = useQuery({
     queryKey: ['currentUser'],
     queryFn: AuthService.getCurrentUser,
   });
+
+  // Initialize presence service when user is authenticated
+  useEffect(() => {
+    if (currentUser?.id) {
+      PresenceService.initialize(currentUser.id);
+      
+      // Cleanup on unmount
+      return () => {
+        PresenceService.cleanup();
+      };
+    }
+  }, [currentUser?.id]);
 
   if (isLoading) {
     return (
