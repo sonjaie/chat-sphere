@@ -245,6 +245,18 @@ export default function ChatArea({
         {/* Messages */}
         {messages.map((message, index) => {
           const isOwn = message.sender_id === currentUser.id;
+          
+          // Debug: Log message ownership
+          console.log(`Message ownership check:`, {
+            messageId: message.id,
+            sender_id: message.sender_id,
+            sender_id_type: typeof message.sender_id,
+            currentUser_id: currentUser.id,
+            currentUser_id_type: typeof currentUser.id,
+            isOwn,
+            sender_name: message.sender?.name,
+            currentUser_name: currentUser.name
+          });
           // Show avatar for all messages when appropriate
           const showAvatar = (
             index === 0 || 

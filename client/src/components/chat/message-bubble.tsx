@@ -97,18 +97,6 @@ export default function MessageBubble({
   if (isOwn) {
     return (
       <div className="flex items-end justify-end space-x-2">
-        {showAvatar && (
-          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
-            <AvatarImage 
-              src={currentUser.profilePicture || ""} 
-              alt={currentUser.name}
-            />
-            <AvatarFallback>
-              {currentUser.name.split(' ').map(n => n[0]).join('')}
-            </AvatarFallback>
-          </Avatar>
-        )}
-        {!showAvatar && <div className="w-8" />}
         <div className="flex flex-col space-y-1 max-w-xs lg:max-w-md items-end">
           <div 
             className="message-bubble-sent text-black px-4 py-2 rounded-2xl rounded-br-md relative group cursor-pointer"
@@ -173,6 +161,18 @@ export default function MessageBubble({
             </div>
           )}
         </div>
+        {showAvatar && (
+          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+            <AvatarImage 
+              src={currentUser.profilePicture || ""} 
+              alt={currentUser.name}
+            />
+            <AvatarFallback>
+              {currentUser.name.split(' ').map(n => n[0]).join('')}
+            </AvatarFallback>
+          </Avatar>
+        )}
+        {!showAvatar && <div className="w-8" />}
       </div>
     );
   }
