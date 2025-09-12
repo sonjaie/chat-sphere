@@ -51,7 +51,7 @@ export default function MessengerPage() {
   });
 
   // Fetch all users for starting new conversations
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsers = [], refetch: refetchUsers } = useQuery({
     queryKey: ['allUsers'],
     queryFn: AuthService.getAllUsers,
   });
@@ -192,6 +192,26 @@ export default function MessengerPage() {
 
     return unsubscribeStories;
   }, [currentUser, refetchStories]);
+
+  // Subscribe to new users
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log('Setting up user subscription...');
+
+    const unsubscribeUsers = AuthService.subscribeToUsers(
+      (newUser) => {
+        console.log('New user registered, refreshing user list:', newUser);
+        refetchUsers();
+      },
+      (updatedUser) => {
+        console.log('User updated, refreshing user list:', updatedUser);
+        refetchUsers();
+      }
+    );
+
+    return unsubscribeUsers;
+  }, [currentUser, refetchUsers]);
 
   // Subscribe to typing indicators
   useEffect(() => {

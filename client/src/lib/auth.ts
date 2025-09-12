@@ -181,6 +181,46 @@ export class AuthService {
     return users || []
   }
 
+  /**
+   * Subscribe to new users being added to the system
+   */
+  static subscribeToUsers(
+    onNewUser: (user: User) => void,
+    onUserUpdate: (user: User) => void
+  ) {
+    const channel = supabase
+      .channel('users-subscription')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'users',
+        },
+        (payload) => {
+          console.log('New user registered:', payload.new);
+          onNewUser(payload.new as User);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+        },
+        (payload) => {
+          console.log('User updated:', payload.new);
+          onUserUpdate(payload.new as User);
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
+
   static async updateProfile(userId: string, updates: {
     name?: string
     profile_picture?: string
