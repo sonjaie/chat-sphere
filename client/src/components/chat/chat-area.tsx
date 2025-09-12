@@ -27,7 +27,6 @@ export default function ChatArea({
 }: ChatAreaProps) {
   const [messageText, setMessageText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -60,37 +59,14 @@ export default function ChatArea({
     }
   }, [messageText]);
 
-  // Handle typing indicators
-  useEffect(() => {
-    let typingTimeout: NodeJS.Timeout;
-    
-    if (messageText && !isTyping) {
-      setIsTyping(true);
-      onSendTyping(true);
-    }
-    
-    if (messageText) {
-      typingTimeout = setTimeout(() => {
-        setIsTyping(false);
-        onSendTyping(false);
-      }, 1000);
-    } else if (isTyping) {
-      setIsTyping(false);
-      onSendTyping(false);
-    }
-    
-    return () => {
-      if (typingTimeout) clearTimeout(typingTimeout);
-    };
-  }, [messageText, isTyping, onSendTyping]);
+  // Typing indicators would be implemented with real-time subscriptions
+  // For now, we skip this feature
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || sendMessageMutation.isPending) return;
     
     const text = messageText.trim();
     setMessageText("");
-    setIsTyping(false);
-    onSendTyping(false);
     
     try {
       await sendMessageMutation.mutateAsync(text);
@@ -272,27 +248,9 @@ export default function ChatArea({
           );
         })}
 
-        {/* Typing Indicator */}
-        {isTyping && (
-          <div className="flex items-start space-x-2">
-            <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
-              <AvatarImage 
-                src={chatAvatar || ""} 
-                alt={chatName}
-              />
-              <AvatarFallback>
-                {chatName.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div className="message-bubble-received px-4 py-3 rounded-2xl rounded-bl-md">
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-muted-foreground rounded-full typing-indicator" />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full typing-indicator" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full typing-indicator" style={{ animationDelay: '0.4s' }} />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Typing Indicator - Only show when OTHER user is typing */}
+        {/* Note: Real-time typing indicators would be implemented here for other users */}
+        {/* For now, we don't show any typing indicators since we don't have real-time setup */}
 
         <div ref={messagesEndRef} />
       </div>

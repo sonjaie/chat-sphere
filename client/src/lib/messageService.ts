@@ -290,4 +290,126 @@ export class MessageService {
       supabase.removeChannel(channel)
     }
   }
+
+  /**
+   * Subscribe to all messages for all chats a user is part of
+   * This is used to update the sidebar when messages arrive in any chat
+   */
+  static subscribeToAllUserMessages(
+    userId: string,
+    onNewMessage: (message: MessageWithDetails) => void,
+    onUpdate: (message: MessageWithDetails) => void,
+    onDelete: (messageId: string) => void
+  ) {
+    const channel = supabase
+      .channel(`user-messages:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        async (payload) => {
+          const message = payload.new as Message
+          
+          // Check if the user is a member of this chat
+          const { data: membership } = await supabase
+            .from('chat_members')
+            .select('chat_id')
+            .eq('chat_id', message.chat_id)
+            .eq('user_id', userId)
+            .single()
+
+          if (membership) {
+            const { data: messageWithDetails, error } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                sender:users(*),
+                reactions(*),
+                message_reads(*),
+                reply_to:messages!reply_to_id(
+                  *,
+                  sender:users(*)
+                )
+              `)
+              .eq('id', message.id)
+              .single()
+
+            if (!error && messageWithDetails) {
+              onNewMessage(messageWithDetails as any)
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        },
+        async (payload) => {
+          const message = payload.new as Message
+          
+          // Check if the user is a member of this chat
+          const { data: membership } = await supabase
+            .from('chat_members')
+            .select('chat_id')
+            .eq('chat_id', message.chat_id)
+            .eq('user_id', userId)
+            .single()
+
+          if (membership) {
+            const { data: messageWithDetails, error } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                sender:users(*),
+                reactions(*),
+                message_reads(*),
+                reply_to:messages!reply_to_id(
+                  *,
+                  sender:users(*)
+                )
+              `)
+              .eq('id', message.id)
+              .single()
+
+            if (!error && messageWithDetails) {
+              onUpdate(messageWithDetails as any)
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+        },
+        async (payload) => {
+          const message = payload.old as Message
+          
+          // Check if the user is a member of this chat
+          const { data: membership } = await supabase
+            .from('chat_members')
+            .select('chat_id')
+            .eq('chat_id', message.chat_id)
+            .eq('user_id', userId)
+            .single()
+
+          if (membership) {
+            onDelete(message.id)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
 }

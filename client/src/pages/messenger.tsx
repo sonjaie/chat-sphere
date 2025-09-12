@@ -56,7 +56,6 @@ export default function MessengerPage() {
         activeChat.id,
         (newMessage) => {
           refetchMessages();
-          refetchChats();
         },
         (updatedMessage) => {
           refetchMessages();
@@ -68,7 +67,42 @@ export default function MessengerPage() {
 
       return unsubscribeMessages;
     }
-  }, [currentUser, activeChat, refetchMessages, refetchChats]);
+  }, [currentUser, activeChat, refetchMessages]);
+
+  // Set up global message subscription for sidebar updates
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribeGlobalMessages = MessageService.subscribeToAllUserMessages(
+      currentUser.id,
+      (newMessage) => {
+        // Update chat list when any new message arrives
+        refetchChats();
+        // Also update messages if this is the active chat
+        if (activeChat && newMessage.chat_id === activeChat.id) {
+          refetchMessages();
+        }
+      },
+      (updatedMessage) => {
+        // Update chat list when any message is updated
+        refetchChats();
+        // Also update messages if this is the active chat
+        if (activeChat && updatedMessage.chat_id === activeChat.id) {
+          refetchMessages();
+        }
+      },
+      (deletedMessageId) => {
+        // Update chat list when any message is deleted
+        refetchChats();
+        // Also update messages if this is the active chat
+        if (activeChat) {
+          refetchMessages();
+        }
+      }
+    );
+
+    return unsubscribeGlobalMessages;
+  }, [currentUser, activeChat, refetchChats, refetchMessages]);
 
   // Subscribe to stories
   useEffect(() => {
@@ -186,6 +220,10 @@ export default function MessengerPage() {
           content: content,
           type: 'text'
         });
+        
+        // Refresh messages for existing chat and chat list for sidebar
+        refetchMessages();
+        refetchChats();
       }
     } catch (error) {
       console.error('Failed to send message:', error);

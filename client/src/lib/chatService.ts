@@ -62,7 +62,7 @@ export class ChatService {
       }
 
       // Get last message
-      const { data: lastMessage, error: messageError } = await supabase
+      const { data: lastMessages, error: messageError } = await supabase
         .from('messages')
         .select(`
           *,
@@ -72,12 +72,13 @@ export class ChatService {
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
 
-      if (messageError && messageError.code !== 'PGRST116') {
+      if (messageError) {
         console.warn('Error fetching last message for chat:', chat.id, messageError)
         // Don't throw, just continue without last message
       }
+
+      const lastMessage = lastMessages && lastMessages.length > 0 ? lastMessages[0] : null
 
       // Get unread count
       const { data: lastRead, error: readError } = await supabase
@@ -179,7 +180,7 @@ export class ChatService {
     if (membersError) throw membersError
 
     // Get last message
-    const { data: lastMessage, error: messageError } = await supabase
+    const { data: lastMessages, error: messageError } = await supabase
       .from('messages')
       .select(`
         *,
@@ -189,11 +190,13 @@ export class ChatService {
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
 
-    if (messageError && messageError.code !== 'PGRST116') {
-      throw messageError
+    if (messageError) {
+      console.warn('Error fetching last message for chat:', chatId, messageError)
+      // Don't throw, just continue without last message
     }
+
+    const lastMessage = lastMessages && lastMessages.length > 0 ? lastMessages[0] : null
 
     // Get unread count
     const { data: lastRead, error: readError } = await supabase
