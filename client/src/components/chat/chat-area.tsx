@@ -13,6 +13,7 @@ interface ChatAreaProps {
   messages: MessageWithReactions[];
   currentUser: User;
   onSendTyping: (isTyping: boolean) => void;
+  onSendMessage: (content: string) => Promise<void>;
   onToggleSidebar: () => void;
 }
 
@@ -21,6 +22,7 @@ export default function ChatArea({
   messages,
   currentUser,
   onSendTyping,
+  onSendMessage,
   onToggleSidebar
 }: ChatAreaProps) {
   const [messageText, setMessageText] = useState("");
@@ -35,11 +37,8 @@ export default function ChatArea({
     mutationFn: async (content: string) => {
       if (!activeChat) throw new Error("No active chat");
       
-      return apiRequest('POST', `/api/chats/${activeChat.id}/messages`, {
-        senderId: currentUser.id,
-        content,
-        type: 'text'
-      });
+      // Use the parent's send message handler
+      await onSendMessage(content);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/chats', activeChat?.id, 'messages'] });

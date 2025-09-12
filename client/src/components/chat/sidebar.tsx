@@ -10,8 +10,10 @@ interface SidebarProps {
   chats: ChatWithLastMessage[];
   stories: StoryWithUser[];
   activeChat: ChatWithLastMessage | null;
+  allUsers: User[];
   onChatSelect: (chat: ChatWithLastMessage) => void;
   onStorySelect: (story: StoryWithUser) => void;
+  onStartChat: (user: User) => void;
 }
 
 export default function Sidebar({
@@ -19,8 +21,10 @@ export default function Sidebar({
   chats,
   stories,
   activeChat,
+  allUsers,
   onChatSelect,
-  onStorySelect
+  onStorySelect,
+  onStartChat
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -30,6 +34,21 @@ export default function Sidebar({
       : chat.otherUser?.name || "Unknown";
     return chatName.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  // Filter users to exclude current user and show only those without existing chats
+  const availableUsers = allUsers
+    .filter(user => user.id !== currentUser.id)
+    .filter(user => {
+      const hasExistingChat = chats.some(chat => 
+        chat.type === "1:1" && 
+        chat.otherUser?.id === user.id
+      );
+      return !hasExistingChat;
+    })
+    .filter(user => 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
 
   const formatTime = (date: Date | undefined) => {
     if (!date) return "";
@@ -173,6 +192,7 @@ export default function Sidebar({
 
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto scroll-area">
+        {/* Existing Chats */}
         {filteredChats.map((chat) => {
           const isActive = activeChat?.id === chat.id;
           const chatName = chat.type === "group" 
@@ -243,6 +263,50 @@ export default function Sidebar({
             </div>
           );
         })}
+
+        {/* Available Users Section */}
+        {availableUsers.length > 0 && (
+          <div className="px-4 py-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Start New Conversation
+            </h3>
+            {availableUsers.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-center p-3 hover:bg-muted cursor-pointer transition-colors rounded-lg"
+                onClick={() => onStartChat(user)}
+                data-testid={`user-${user.id}`}
+              >
+                <div className="relative flex-shrink-0">
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={user.profilePicture || undefined} />
+                    <AvatarFallback className="bg-secondary text-secondary-foreground">
+                      {user.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${
+                    user.status === 'online' ? 'bg-green-500' : 
+                    user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
+                  }`} />
+                </div>
+                <div className="ml-3 flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium truncate" data-testid={`text-user-name-${user.id}`}>
+                      {user.name}
+                    </p>
+                    <span className="text-xs text-muted-foreground" data-testid={`text-user-status-${user.id}`}>
+                      {user.status === 'online' ? 'Online' : 
+                       user.status === 'away' ? 'Away' : 'Offline'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate" data-testid={`text-user-email-${user.id}`}>
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import ChatArea from "@/components/chat/chat-area";
 import ChatInfo from "@/components/chat/chat-info";
 import StoryViewer from "@/components/chat/story-viewer";
 import { AuthService, ChatService, MessageService, StoryService } from "../lib";
+import { supabase } from "../lib/supabase";
 import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser } from "../lib";
 
 export default function MessengerPage() {
@@ -32,19 +33,25 @@ export default function MessengerPage() {
     enabled: !!currentUser,
   });
 
+  // Fetch all users for starting new conversations
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['allUsers'],
+    queryFn: AuthService.getAllUsers,
+  });
+
   // Fetch messages for active chat
   const { data: messages = [], refetch: refetchMessages } = useQuery<MessageWithDetails[]>({
     queryKey: ['messages', activeChat?.id],
     queryFn: () => activeChat ? MessageService.getMessages(activeChat.id) : Promise.resolve([]),
-    enabled: !!activeChat,
+    enabled: !!activeChat && !activeChat.id.startsWith('temp-'), // Skip fetching for temporary chats
   });
 
   // Set up real-time subscriptions
   useEffect(() => {
     if (!currentUser) return;
 
-    // Subscribe to messages for active chat
-    if (activeChat) {
+    // Subscribe to messages for active chat (skip temporary chats)
+    if (activeChat && !activeChat.id.startsWith('temp-')) {
       const unsubscribeMessages = MessageService.subscribeToMessages(
         activeChat.id,
         (newMessage) => {
@@ -94,8 +101,8 @@ export default function MessengerPage() {
     setActiveChat(chat);
     setShowMobileSidebar(false);
     
-    // Mark chat as read when selected
-    if (currentUser) {
+    // Mark chat as read when selected (skip temporary chats)
+    if (currentUser && !chat.id.startsWith('temp-')) {
       ChatService.markAsRead(chat.id, currentUser.id);
     }
   };
@@ -109,9 +116,80 @@ export default function MessengerPage() {
     }
   };
 
+  const handleStartChat = async (otherUser: any) => {
+    if (!currentUser) return;
+    
+    // Don't create the chat yet, just set up a temporary chat for messaging
+    const tempChat = {
+      id: `temp-${otherUser.id}`,
+      type: '1:1' as const,
+      name: null,
+      description: null,
+      avatar: null,
+      created_by: currentUser.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      members: [],
+      otherUser: otherUser,
+      last_message: null,
+      unread_count: 0,
+    };
+    
+    console.log('Starting temporary chat with:', otherUser.name);
+    setActiveChat(tempChat);
+    setShowMobileSidebar(false);
+  };
+
   const handleSendTyping = (isTyping: boolean) => {
     // Typing indicators can be implemented with Supabase real-time
     // For now, we'll skip this feature
+  };
+
+  const handleSendMessage = async (content: string) => {
+    if (!activeChat || !currentUser) return;
+    
+    try {
+      // Check if this is a temporary chat (starts with "temp-")
+      if (activeChat.id.startsWith('temp-')) {
+        console.log('Creating real chat for first message...');
+        
+        // Extract the other user ID from the temp chat ID
+        const otherUserId = activeChat.id.replace('temp-', '');
+        
+        // Create the real chat
+        const realChat = await ChatService.createChatWithUser(currentUser.id, otherUserId);
+        console.log('Real chat created:', realChat);
+        
+        
+        // Set the active chat to the real chat
+        setActiveChat(realChat);
+        
+        // Now send the message to the real chat
+        const messageResult = await MessageService.sendMessage({
+          chat_id: realChat.id,
+          sender_id: currentUser.id,
+          content: content,
+          type: 'text'
+        });
+        
+        console.log('Message sent to real chat:', messageResult);
+        
+        // Refresh the chat list so the new chat appears in the sidebar
+        console.log('Refreshing chat list...');
+        await refetchChats();
+        console.log('Chat list refreshed');
+      } else {
+        // Send message to existing chat
+        await MessageService.sendMessage({
+          chat_id: activeChat.id,
+          sender_id: currentUser.id,
+          content: content,
+          type: 'text'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   if (!currentUser) {
@@ -145,8 +223,10 @@ export default function MessengerPage() {
           chats={chats}
           stories={stories}
           activeChat={activeChat}
+          allUsers={allUsers}
           onChatSelect={handleChatSelect}
           onStorySelect={handleStorySelect}
+          onStartChat={handleStartChat}
           data-testid="sidebar"
         />
       </div>
@@ -159,6 +239,7 @@ export default function MessengerPage() {
           messages={messages}
           currentUser={currentUser}
           onSendTyping={handleSendTyping}
+          onSendMessage={handleSendMessage}
           onToggleSidebar={() => setShowMobileSidebar(!showMobileSidebar)}
           data-testid="chat-area"
         />

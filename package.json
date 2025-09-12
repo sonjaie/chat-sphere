@@ -15,7 +15,19 @@
     "docker:dev": "docker-compose up dev",
     "docker:prod": "docker-compose up app",
     "docker:down": "docker-compose down",
-    "vercel-build": "npm run build"
+    "vercel-build": "node vercel-migration.js && npm run build",
+    "postinstall": "npm run db:generate-types || echo 'Skipping type generation - Supabase not configured'",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:reset": "npx supabase db reset",
+    "db:migrate": "npx supabase migration up",
+    "db:migrate:new": "npx supabase migration new",
+    "db:generate-types": "npx supabase gen types typescript --local > src/types/supabase.ts",
+    "db:push": "npx supabase db push",
+    "db:pull": "npx supabase db pull",
+    "db:deploy": "npx supabase db push --include-all",
+    "db:migrate:prod": "npx supabase migration up --linked",
+    "db:types:prod": "npx supabase gen types typescript --linked > src/types/supabase.ts"
   },
   "vercel": {
     "git": {

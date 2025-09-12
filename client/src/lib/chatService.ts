@@ -56,7 +56,10 @@ export class ChatService {
         `)
         .eq('chat_id', chat.id)
 
-      if (membersError) throw membersError
+      if (membersError) {
+        console.error('Error fetching chat members:', membersError)
+        throw membersError
+      }
 
       // Get last message
       const { data: lastMessage, error: messageError } = await supabase
@@ -72,7 +75,8 @@ export class ChatService {
         .single()
 
       if (messageError && messageError.code !== 'PGRST116') {
-        throw messageError
+        console.warn('Error fetching last message for chat:', chat.id, messageError)
+        // Don't throw, just continue without last message
       }
 
       // Get unread count
@@ -110,11 +114,20 @@ export class ChatService {
       // Find the other user for 1:1 chats
       let otherUser = null
       if (chat.type === '1:1') {
-        const otherMember = chatMembersWithUsers?.find(member => 
-          (member.user as any)?.id !== userId
-        )
-        if (otherMember) {
-          otherUser = otherMember.user as any
+        // Get the user_id that's not the current user
+        const otherMemberId = chatMembersWithUsers?.find(m => m.user_id !== userId)?.user_id
+        
+        if (otherMemberId) {
+          // Fetch the user data directly
+          const { data: otherUserData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', otherMemberId)
+            .single()
+          
+          if (!userError && otherUserData) {
+            otherUser = otherUserData
+          }
         }
       }
 
@@ -207,11 +220,20 @@ export class ChatService {
     // Find the other user for 1:1 chats
     let otherUser = null
     if (chat.type === '1:1') {
-      const otherMember = members?.find(member => 
-        (member.user as any)?.id !== userId
-      )
-      if (otherMember) {
-        otherUser = otherMember.user as any
+      // Get the user_id that's not the current user
+      const otherMemberId = members?.find(m => m.user_id !== userId)?.user_id
+      
+      if (otherMemberId) {
+        // Fetch the user data directly
+        const { data: otherUserData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', otherMemberId)
+          .single()
+        
+        if (!userError && otherUserData) {
+          otherUser = otherUserData
+        }
       }
     }
 
@@ -383,7 +405,10 @@ export class ChatService {
         }
       ])
 
-    if (membersError) throw membersError
+    if (membersError) {
+      console.error('Error adding chat members:', membersError)
+      throw membersError
+    }
 
     // Return the new chat with details
     return await this.getChat(newChat.id, currentUserId) as ChatWithDetails

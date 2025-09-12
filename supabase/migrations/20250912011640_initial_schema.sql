@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create users table
 CREATE TABLE users (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     email_verified_at TIMESTAMP WITH TIME ZONE,
@@ -18,7 +18,7 @@ CREATE TABLE users (
 
 -- Create chats table
 CREATE TABLE chats (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     type VARCHAR(10) DEFAULT '1:1' CHECK (type IN ('1:1', 'group')),
     name VARCHAR(255), -- Only for groups
     description TEXT, -- Optional group description
@@ -30,7 +30,7 @@ CREATE TABLE chats (
 
 -- Create chat_members table
 CREATE TABLE chat_members (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) DEFAULT 'member' CHECK (role IN ('admin', 'member')),
@@ -43,7 +43,7 @@ CREATE TABLE chat_members (
 
 -- Create messages table
 CREATE TABLE messages (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
     sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL, -- For message replies
@@ -60,7 +60,7 @@ CREATE TABLE messages (
 
 -- Create message_reads table
 CREATE TABLE message_reads (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -70,7 +70,7 @@ CREATE TABLE message_reads (
 
 -- Create reactions table
 CREATE TABLE reactions (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     emoji VARCHAR(10) NOT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE reactions (
 
 -- Create stories table
 CREATE TABLE stories (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     media_url TEXT NOT NULL, -- URL to image/video
     caption TEXT,
@@ -91,7 +91,7 @@ CREATE TABLE stories (
 
 -- Create story_views table
 CREATE TABLE story_views (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     viewed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -150,7 +150,7 @@ WITH CHECK (auth.uid() = created_by);
 
 -- Chat members can view chat members
 CREATE POLICY "Chat members can view chat members" ON chat_members FOR SELECT 
-USING (chat_id IN (SELECT chat_id FROM chat_members WHERE user_id = auth.uid()));
+USING (user_id = auth.uid() OR chat_id IN (SELECT chat_id FROM chat_members WHERE user_id = auth.uid()));
 
 -- Users can join chats (this would typically be through an invitation system)
 CREATE POLICY "Users can join chats" ON chat_members FOR INSERT 
