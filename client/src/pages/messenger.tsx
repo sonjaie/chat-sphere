@@ -391,7 +391,7 @@ export default function MessengerPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background overflow-x-hidden">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {showMobileSidebar && (
         <div 
@@ -419,7 +419,7 @@ export default function MessengerPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col h-full">
         <ChatArea
           key={activeChat?.id || 'no-chat'}
           activeChat={activeChat}

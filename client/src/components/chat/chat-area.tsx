@@ -158,7 +158,7 @@ export default function ChatArea({
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col h-full">
       {/* Chat Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-card">
         <div className="flex items-center space-x-3">
@@ -234,7 +234,7 @@ export default function ChatArea({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-area" data-testid="messages-container">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-area min-h-0" data-testid="messages-container">
         {/* Date Separator */}
         <div className="flex justify-center">
           <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full">
