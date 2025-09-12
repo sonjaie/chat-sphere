@@ -99,7 +99,7 @@ jobs:
         SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       run: |
         echo "Linking to Supabase project: $SUPABASE_PROJECT_ID"
-        npx supabase link --project-ref $SUPABASE_PROJECT_ID --access-token $SUPABASE_ACCESS_TOKEN
+        npx supabase link --project-ref $SUPABASE_PROJECT_ID --yes
     
     - name: Run Database Migrations
       env:
@@ -110,14 +110,14 @@ jobs:
         # - Checking if tables exist (skips if they do)
         # - Checking if columns exist (skips if they do)
         # - Only applies new migrations
-        npx supabase db push --access-token $SUPABASE_ACCESS_TOKEN
+        npx supabase db push
     
     - name: Generate TypeScript Types
       env:
         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       run: |
         echo "Generating TypeScript types..."
-        npx supabase gen types typescript --project-id ${{ secrets.SUPABASE_PROJECT_ID }} --access-token $SUPABASE_ACCESS_TOKEN > shared/schema.ts
+        npx supabase gen types typescript --project-id ${{ secrets.SUPABASE_PROJECT_ID }} > shared/schema.ts
     
     - name: Build Application
       run: npm run build
