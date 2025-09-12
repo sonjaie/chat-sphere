@@ -14,7 +14,15 @@
     "docker:build": "docker build -t chatsphere .",
     "docker:dev": "docker-compose up dev",
     "docker:prod": "docker-compose up app",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "vercel-build": "npm run build"
+  },
+  "vercel": {
+    "git": {
+      "deploymentEnabled": {
+        "main": false
+      }
+    }
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
