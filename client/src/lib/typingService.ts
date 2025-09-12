@@ -7,128 +7,109 @@ export interface TypingUser {
   started_at: string
 }
 
+/**
+ * Realtime, DB-less typing service using Supabase Broadcast.
+ * - No migrations or writes
+ * - Works even if Postgres changes are slow
+ */
 export class TypingService {
-  private static typingTimeouts = new Map<string, NodeJS.Timeout>()
+  private static typingTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+  private static channels = new Map<string, ReturnType<typeof supabase.channel>>()
+  private static activeTypers = new Map<string, Map<string, number>>() // chatId -> (userId -> lastTs)
+
+  private static getOrCreateChannel(chatId: string) {
+    if (this.channels.has(chatId)) return this.channels.get(chatId)!
+    const channel = supabase.channel(`typing:${chatId}`, {
+      config: { broadcast: { ack: true } }
+    })
+    this.channels.set(chatId, channel)
+    return channel
+  }
 
   /**
-   * Subscribe to typing indicators for a specific chat
+   * Subscribe to typing indicators for a specific chat via Broadcast
    */
   static subscribeToTyping(
     chatId: string,
     onTypingUpdate: (typingUsers: TypingUser[]) => void
   ) {
-    const channel = supabase
-      .channel(`typing:${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'typing_indicators',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        async (payload) => {
-          // Get all current typing users for this chat
-          const { data: typingUsers, error } = await supabase
-            .from('typing_indicators')
-            .select('*')
-            .eq('chat_id', chatId)
-            .eq('is_typing', true)
-            .order('started_at', { ascending: true })
+    const channel = this.getOrCreateChannel(chatId)
 
-          if (!error && typingUsers) {
-            onTypingUpdate(typingUsers as TypingUser[])
-          }
+    // Initialize cache for this chat
+    if (!this.activeTypers.has(chatId)) this.activeTypers.set(chatId, new Map())
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { user_id, is_typing } = payload.payload as { user_id: string; is_typing: boolean }
+
+        const key = `${chatId}-${user_id}`
+        const chatMap = this.activeTypers.get(chatId)!
+
+        // Clear existing timer
+        const existing = this.typingTimeouts.get(key)
+        if (existing) clearTimeout(existing)
+
+        if (is_typing) {
+          // Mark as active and set expiry timer
+          chatMap.set(user_id, Date.now())
+          const timeout = setTimeout(() => {
+            chatMap.delete(user_id)
+            this.typingTimeouts.delete(key)
+            onTypingUpdate(this.mapToTypingUsers(chatId, chatMap))
+          }, 3000)
+          this.typingTimeouts.set(key, timeout)
+        } else {
+          chatMap.delete(user_id)
+          this.typingTimeouts.delete(key)
         }
-      )
+
+        onTypingUpdate(this.mapToTypingUsers(chatId, chatMap))
+      })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
+      this.channels.delete(chatId)
+      this.activeTypers.delete(chatId)
     }
   }
 
+  private static mapToTypingUsers(chatId: string, chatMap: Map<string, number>): TypingUser[] {
+    return Array.from(chatMap.keys()).map((userId) => ({
+      user_id: userId,
+      chat_id: chatId,
+      is_typing: true,
+      started_at: new Date(chatMap.get(userId)!).toISOString(),
+    }))
+  }
+
   /**
-   * Start typing indicator
+   * Start typing: broadcast an event to peers in the chat
    */
   static async startTyping(chatId: string, userId: string): Promise<void> {
-    // Clear any existing timeout
-    const timeoutKey = `${chatId}-${userId}`
-    const existingTimeout = this.typingTimeouts.get(timeoutKey)
-    if (existingTimeout) {
-      clearTimeout(existingTimeout)
-    }
+    const channel = this.getOrCreateChannel(chatId)
+    await channel.send({ type: 'broadcast', event: 'typing', payload: { user_id: userId, is_typing: true } })
 
-    // Set typing to true
-    const { error } = await supabase
-      .from('typing_indicators')
-      .upsert({
-        chat_id: chatId,
-        user_id: userId,
-        is_typing: true,
-        started_at: new Date().toISOString(),
-      }, {
-        onConflict: 'chat_id,user_id'
-      })
-
-    if (error) {
-      console.error('Error starting typing indicator:', error)
-      return
-    }
-
-    // Set timeout to stop typing after 3 seconds of inactivity
-    const timeout = setTimeout(() => {
-      this.stopTyping(chatId, userId)
-    }, 3000)
-
-    this.typingTimeouts.set(timeoutKey, timeout)
+    // Locally also schedule a stop to reduce spam if caller forgets
+    const key = `${chatId}-${userId}`
+    const existing = this.typingTimeouts.get(key)
+    if (existing) clearTimeout(existing)
+    const timeout = setTimeout(() => this.stopTyping(chatId, userId), 3000)
+    this.typingTimeouts.set(key, timeout)
   }
 
   /**
-   * Stop typing indicator
+   * Stop typing: broadcast false
    */
   static async stopTyping(chatId: string, userId: string): Promise<void> {
-    // Clear timeout
-    const timeoutKey = `${chatId}-${userId}`
-    const existingTimeout = this.typingTimeouts.get(timeoutKey)
-    if (existingTimeout) {
-      clearTimeout(existingTimeout)
-      this.typingTimeouts.delete(timeoutKey)
+    const channel = this.getOrCreateChannel(chatId)
+    await channel.send({ type: 'broadcast', event: 'typing', payload: { user_id: userId, is_typing: false } })
+
+    const key = `${chatId}-${userId}`
+    const existing = this.typingTimeouts.get(key)
+    if (existing) {
+      clearTimeout(existing)
+      this.typingTimeouts.delete(key)
     }
-
-    // Set typing to false
-    const { error } = await supabase
-      .from('typing_indicators')
-      .upsert({
-        chat_id: chatId,
-        user_id: userId,
-        is_typing: false,
-        started_at: new Date().toISOString(),
-      }, {
-        onConflict: 'chat_id,user_id'
-      })
-
-    if (error) {
-      console.error('Error stopping typing indicator:', error)
-    }
-  }
-
-  /**
-   * Get current typing users for a chat
-   */
-  static async getTypingUsers(chatId: string): Promise<TypingUser[]> {
-    const { data: typingUsers, error } = await supabase
-      .from('typing_indicators')
-      .select('*')
-      .eq('chat_id', chatId)
-      .eq('is_typing', true)
-      .order('started_at', { ascending: true })
-
-    if (error) {
-      console.error('Error getting typing users:', error)
-      return []
-    }
-
-    return typingUsers as TypingUser[]
   }
 }

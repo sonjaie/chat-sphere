@@ -203,8 +203,11 @@ export default function MessengerPage() {
       activeChat.id,
       (typingUsers) => {
         console.log('Typing users updated:', typingUsers);
+        console.log('Current user ID:', currentUser.id);
+        console.log('Active chat other user ID:', activeChat.otherUser?.id);
         // Filter out the current user from typing indicators
         const otherTypingUsers = typingUsers.filter(user => user.user_id !== currentUser.id);
+        console.log('Other typing users after filter:', otherTypingUsers);
         setTypingUsers(otherTypingUsers);
       }
     );
@@ -265,11 +268,15 @@ export default function MessengerPage() {
   const handleSendTyping = async (isTyping: boolean) => {
     if (!currentUser || !activeChat || activeChat.id.startsWith('temp-')) return;
     
+    console.log('Typing event:', { isTyping, chatId: activeChat.id, userId: currentUser.id });
+    
     try {
       if (isTyping) {
         await TypingService.startTyping(activeChat.id, currentUser.id);
+        console.log('Started typing for user:', currentUser.id, 'in chat:', activeChat.id);
       } else {
         await TypingService.stopTyping(activeChat.id, currentUser.id);
+        console.log('Stopped typing for user:', currentUser.id, 'in chat:', activeChat.id);
       }
     } catch (error) {
       console.error('Failed to update typing status:', error);
