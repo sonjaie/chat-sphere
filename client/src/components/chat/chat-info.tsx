@@ -47,7 +47,7 @@ export default function ChatInfo({ activeChat, currentUser }: ChatInfoProps) {
   ];
 
   return (
-    <div className="flex flex-col w-full bg-card border-l border-border">
+    <div className="flex flex-col w-full bg-card border-l border-border relative">
       {/* Chat Info Header */}
       <div className="p-6 text-center border-b border-border">
         <div className="relative mx-auto mb-3 w-20 h-20">
@@ -76,6 +76,19 @@ export default function ChatInfo({ activeChat, currentUser }: ChatInfoProps) {
         <p className="text-muted-foreground" data-testid="text-chat-info-status">
           {getStatusText()}
         </p>
+      </div>
+
+      {/* Coming Soon Overlay - covers actions and below */}
+      <div className="absolute top-[180px] left-0 right-0 bottom-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+        <div className="text-center p-6">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">🚀</span>
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Coming Soon</h3>
+          <p className="text-muted-foreground text-sm">
+            Chat details and settings will be available in a future update
+          </p>
+        </div>
       </div>
 
       {/* Chat Actions */}
