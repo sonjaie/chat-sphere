@@ -18,6 +18,14 @@ vite.config.ts.*
 .env.*.test
 .env.*.staging
 
+# Client environment files
+client/.env
+client/.env.local
+client/.env.development
+client/.env.production
+client/.env.test
+client/.env.staging
+
 # IDE and editor files
 .vscode/
 .idea/
