@@ -311,9 +311,6 @@ export default function Sidebar({
                        user.status === 'away' ? 'Away' : 'Offline'}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate" data-testid={`text-user-email-${user.id}`}>
-                    {user.email}
-                  </p>
                 </div>
               </div>
             ))}
