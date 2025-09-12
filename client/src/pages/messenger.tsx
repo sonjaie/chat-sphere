@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/chat/sidebar";
 import ChatArea from "@/components/chat/chat-area";
 import ChatInfo from "@/components/chat/chat-info";
 import StoryViewer from "@/components/chat/story-viewer";
-import { AuthService, ChatService, MessageService, StoryService } from "../lib";
+import { AuthService, ChatService, MessageService, StoryService, TypingService } from "../lib";
 import { supabase } from "../lib/supabase";
-import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser } from "../lib";
+import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser, TypingUser } from "../lib";
 
 export default function MessengerPage() {
   const [activeChat, setActiveChat] = useState<ChatWithDetails | null>(null);
   const [selectedStory, setSelectedStory] = useState<StoryWithDetails | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const queryClient = useQueryClient();
 
   // Fetch current user
   const { data: currentUser } = useQuery<AuthUser | null>({
@@ -25,6 +27,21 @@ export default function MessengerPage() {
     queryFn: () => currentUser ? ChatService.getChats(currentUser.id) : Promise.resolve([]),
     enabled: !!currentUser,
   });
+
+  // Debug: Log chats when they change
+  useEffect(() => {
+    console.log('Chats updated:', chats);
+    chats.forEach((chat, index) => {
+      console.log(`Chat ${index}:`, {
+        id: chat.id,
+        type: chat.type,
+        name: chat.name,
+        otherUser: chat.otherUser,
+        members: chat.members,
+        last_message: chat.last_message
+      });
+    });
+  }, [chats]);
 
   // Fetch active stories
   const { data: stories = [], refetch: refetchStories } = useQuery<StoryWithDetails[]>({
@@ -46,63 +63,115 @@ export default function MessengerPage() {
     enabled: !!activeChat && !activeChat.id.startsWith('temp-'), // Skip fetching for temporary chats
   });
 
+  // Debug: Log messages when they change
+  useEffect(() => {
+    console.log('Messages updated:', messages);
+    messages.forEach((msg, index) => {
+      console.log(`Message ${index}:`, {
+        id: msg.id,
+        sender_id: msg.sender_id,
+        sender: msg.sender,
+        content: msg.content,
+        created_at: msg.created_at
+      });
+    });
+  }, [messages]);
+
   // Set up real-time subscriptions
   useEffect(() => {
     if (!currentUser) return;
 
     // Subscribe to messages for active chat (skip temporary chats)
     if (activeChat && !activeChat.id.startsWith('temp-')) {
+      console.log('Setting up real-time subscription for chat:', activeChat.id);
+      
       const unsubscribeMessages = MessageService.subscribeToMessages(
         activeChat.id,
         (newMessage) => {
-          refetchMessages();
+          console.log('New message received via real-time:', newMessage);
+          // Use queryClient to update the cache directly instead of refetching
+          queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+            // Check if message already exists to avoid duplicates
+            const exists = oldMessages.some(msg => msg.id === newMessage.id);
+            if (exists) return oldMessages;
+            return [...oldMessages, newMessage];
+          });
+          // Also update the chat list to show the new message
+          refetchChats();
         },
         (updatedMessage) => {
-          refetchMessages();
+          console.log('Message updated via real-time:', updatedMessage);
+          // Update the specific message in the cache
+          queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+            return oldMessages.map(msg => 
+              msg.id === updatedMessage.id ? updatedMessage : msg
+            );
+          });
+          refetchChats();
         },
         (deletedMessageId) => {
-          refetchMessages();
+          console.log('Message deleted via real-time:', deletedMessageId);
+          // Remove the message from the cache
+          queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+            return oldMessages.filter(msg => msg.id !== deletedMessageId);
+          });
+          refetchChats();
         }
       );
 
       return unsubscribeMessages;
     }
-  }, [currentUser, activeChat, refetchMessages]);
+  }, [currentUser, activeChat, queryClient, refetchChats]);
 
   // Set up global message subscription for sidebar updates
   useEffect(() => {
     if (!currentUser) return;
 
+    console.log('Setting up global message subscription for user:', currentUser.id);
+
     const unsubscribeGlobalMessages = MessageService.subscribeToAllUserMessages(
       currentUser.id,
       (newMessage) => {
+        console.log('Global new message received:', newMessage);
         // Update chat list when any new message arrives
         refetchChats();
         // Also update messages if this is the active chat
         if (activeChat && newMessage.chat_id === activeChat.id) {
-          refetchMessages();
+          queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+            const exists = oldMessages.some(msg => msg.id === newMessage.id);
+            if (exists) return oldMessages;
+            return [...oldMessages, newMessage];
+          });
         }
       },
       (updatedMessage) => {
+        console.log('Global message updated:', updatedMessage);
         // Update chat list when any message is updated
         refetchChats();
         // Also update messages if this is the active chat
         if (activeChat && updatedMessage.chat_id === activeChat.id) {
-          refetchMessages();
+          queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+            return oldMessages.map(msg => 
+              msg.id === updatedMessage.id ? updatedMessage : msg
+            );
+          });
         }
       },
       (deletedMessageId) => {
+        console.log('Global message deleted:', deletedMessageId);
         // Update chat list when any message is deleted
         refetchChats();
         // Also update messages if this is the active chat
         if (activeChat) {
-          refetchMessages();
+          queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+            return oldMessages.filter(msg => msg.id !== deletedMessageId);
+          });
         }
       }
     );
 
     return unsubscribeGlobalMessages;
-  }, [currentUser, activeChat, refetchChats, refetchMessages]);
+  }, [currentUser, activeChat, queryClient, refetchChats]);
 
   // Subscribe to stories
   useEffect(() => {
@@ -123,6 +192,25 @@ export default function MessengerPage() {
 
     return unsubscribeStories;
   }, [currentUser, refetchStories]);
+
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (!currentUser || !activeChat || activeChat.id.startsWith('temp-')) return;
+
+    console.log('Setting up typing subscription for chat:', activeChat.id);
+
+    const unsubscribeTyping = TypingService.subscribeToTyping(
+      activeChat.id,
+      (typingUsers) => {
+        console.log('Typing users updated:', typingUsers);
+        // Filter out the current user from typing indicators
+        const otherTypingUsers = typingUsers.filter(user => user.user_id !== currentUser.id);
+        setTypingUsers(otherTypingUsers);
+      }
+    );
+
+    return unsubscribeTyping;
+  }, [currentUser, activeChat]);
 
   // Set default active chat
   useEffect(() => {
@@ -174,9 +262,18 @@ export default function MessengerPage() {
     setShowMobileSidebar(false);
   };
 
-  const handleSendTyping = (isTyping: boolean) => {
-    // Typing indicators can be implemented with Supabase real-time
-    // For now, we'll skip this feature
+  const handleSendTyping = async (isTyping: boolean) => {
+    if (!currentUser || !activeChat || activeChat.id.startsWith('temp-')) return;
+    
+    try {
+      if (isTyping) {
+        await TypingService.startTyping(activeChat.id, currentUser.id);
+      } else {
+        await TypingService.stopTyping(activeChat.id, currentUser.id);
+      }
+    } catch (error) {
+      console.error('Failed to update typing status:', error);
+    }
   };
 
   const handleSendMessage = async (content: string) => {
@@ -194,7 +291,6 @@ export default function MessengerPage() {
         const realChat = await ChatService.createChatWithUser(currentUser.id, otherUserId);
         console.log('Real chat created:', realChat);
         
-        
         // Set the active chat to the real chat
         setActiveChat(realChat);
         
@@ -208,21 +304,47 @@ export default function MessengerPage() {
         
         console.log('Message sent to real chat:', messageResult);
         
+        // Update the cache immediately for better UX
+        queryClient.setQueryData(['messages', realChat.id], (oldMessages: MessageWithDetails[] = []) => {
+          const exists = oldMessages.some(msg => msg.id === messageResult.id);
+          if (exists) return oldMessages;
+          return [...oldMessages, messageResult];
+        });
+        
         // Refresh the chat list so the new chat appears in the sidebar
         console.log('Refreshing chat list...');
         await refetchChats();
         console.log('Chat list refreshed');
+        
+        // Also refresh messages to make sure they're loaded
+        console.log('Refreshing messages...');
+        await refetchMessages();
+        console.log('Messages refreshed');
       } else {
         // Send message to existing chat
-        await MessageService.sendMessage({
+        const messageResult = await MessageService.sendMessage({
           chat_id: activeChat.id,
           sender_id: currentUser.id,
           content: content,
           type: 'text'
         });
         
-        // Refresh messages for existing chat and chat list for sidebar
-        refetchMessages();
+        console.log('Message sent:', messageResult);
+        
+        // Update the cache immediately for better UX
+        console.log('Updating cache with new message:', messageResult);
+        queryClient.setQueryData(['messages', activeChat.id], (oldMessages: MessageWithDetails[] = []) => {
+          const exists = oldMessages.some(msg => msg.id === messageResult.id);
+          if (exists) {
+            console.log('Message already exists in cache, not adding duplicate');
+            return oldMessages;
+          }
+          console.log('Adding new message to cache');
+          return [...oldMessages, messageResult];
+        });
+        
+        // Refresh chat list for sidebar
+        console.log('Refreshing chat list for existing chat...');
         refetchChats();
       }
     } catch (error) {
@@ -276,6 +398,7 @@ export default function MessengerPage() {
           activeChat={activeChat}
           messages={messages}
           currentUser={currentUser}
+          typingUsers={typingUsers}
           onSendTyping={handleSendTyping}
           onSendMessage={handleSendMessage}
           onToggleSidebar={() => setShowMobileSidebar(!showMobileSidebar)}

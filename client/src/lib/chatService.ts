@@ -31,6 +31,8 @@ export interface MessageWithDetails extends Message {
 
 export class ChatService {
   static async getChats(userId: string): Promise<ChatWithDetails[]> {
+    console.log('Getting chats for user:', userId);
+    
     // Get all chats where user is a member
     const { data: chatMembers, error: membersError } = await supabase
       .from('chat_members')
@@ -40,7 +42,12 @@ export class ChatService {
       `)
       .eq('user_id', userId)
 
-    if (membersError) throw membersError
+    if (membersError) {
+      console.error('Error fetching chat members:', membersError);
+      throw membersError;
+    }
+    
+    console.log('Chat members found:', chatMembers);
 
     const chats: ChatWithDetails[] = []
 
@@ -141,11 +148,14 @@ export class ChatService {
       })
     }
 
-    return chats.sort((a, b) => {
+    const sortedChats = chats.sort((a, b) => {
       const aTime = a.last_message?.created_at || a.created_at
       const bTime = b.last_message?.created_at || b.created_at
       return new Date(bTime).getTime() - new Date(aTime).getTime()
-    })
+    });
+    
+    console.log('Final sorted chats:', sortedChats);
+    return sortedChats;
   }
 
   static async getChat(chatId: string, userId: string): Promise<ChatWithDetails | null> {
@@ -338,6 +348,8 @@ export class ChatService {
   }
 
   static async createChatWithUser(currentUserId: string, otherUserId: string): Promise<ChatWithDetails> {
+    console.log('Creating chat between users:', currentUserId, 'and', otherUserId);
+    
     // Check if a 1:1 chat already exists between these users
     // First get all chat IDs for the current user
     const { data: userChats, error: checkError } = await supabase
@@ -345,7 +357,12 @@ export class ChatService {
       .select('chat_id')
       .eq('user_id', currentUserId)
 
-    if (checkError) throw checkError
+    if (checkError) {
+      console.error('Error checking existing chats:', checkError);
+      throw checkError;
+    }
+    
+    console.log('User chats found:', userChats);
 
     // Check each chat to see if it's a 1:1 chat with the other user
     for (const userChat of userChats || []) {
@@ -380,6 +397,7 @@ export class ChatService {
     }
 
     // Create new 1:1 chat
+    console.log('Creating new 1:1 chat...');
     const { data: newChat, error: chatError } = await supabase
       .from('chats')
       .insert({
@@ -392,7 +410,12 @@ export class ChatService {
       .select()
       .single()
 
-    if (chatError) throw chatError
+    if (chatError) {
+      console.error('Error creating new chat:', chatError);
+      throw chatError;
+    }
+    
+    console.log('New chat created:', newChat);
 
     // Add both users as members
     const { error: membersError } = await supabase

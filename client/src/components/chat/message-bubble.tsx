@@ -31,7 +31,7 @@ export default function MessageBubble({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
-        queryKey: ['/api/chats', message.chatId, 'messages'] 
+        queryKey: ['/api/chats', message.chat_id, 'messages'] 
       });
     }
   });
@@ -44,7 +44,7 @@ export default function MessageBubble({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
-        queryKey: ['/api/chats', message.chatId, 'messages'] 
+        queryKey: ['/api/chats', message.chat_id, 'messages'] 
       });
     }
   });
@@ -97,9 +97,21 @@ export default function MessageBubble({
   if (isOwn) {
     return (
       <div className="flex items-end justify-end space-x-2">
+        {showAvatar && (
+          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+            <AvatarImage 
+              src={currentUser.profilePicture || ""} 
+              alt={currentUser.name}
+            />
+            <AvatarFallback>
+              {currentUser.name.split(' ').map(n => n[0]).join('')}
+            </AvatarFallback>
+          </Avatar>
+        )}
+        {!showAvatar && <div className="w-8" />}
         <div className="flex flex-col space-y-1 max-w-xs lg:max-w-md items-end">
           <div 
-            className="message-bubble-sent text-primary-foreground px-4 py-2 rounded-2xl rounded-br-md relative group cursor-pointer"
+            className="message-bubble-sent text-black px-4 py-2 rounded-2xl rounded-br-md relative group cursor-pointer"
             onClick={() => setShowReactions(!showReactions)}
           >
             {message.type === "image" ? (
@@ -138,7 +150,7 @@ export default function MessageBubble({
           </div>
           
           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-            <span data-testid="text-message-time">{formatTime(message.timestamp || new Date())}</span>
+            <span data-testid="text-message-time">{formatTime(new Date(message.created_at || ''))}</span>
             {getReadStatus()}
           </div>
           
@@ -182,7 +194,7 @@ export default function MessageBubble({
       
       <div className="flex flex-col space-y-1 max-w-xs lg:max-w-md">
         <div 
-          className="message-bubble-received px-4 py-2 rounded-2xl rounded-bl-md relative group cursor-pointer"
+          className="message-bubble-received text-foreground px-4 py-2 rounded-2xl rounded-bl-md relative group cursor-pointer"
           onClick={() => setShowReactions(!showReactions)}
         >
           {message.type === "image" ? (
@@ -221,7 +233,7 @@ export default function MessageBubble({
         </div>
         
         <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-          <span data-testid="text-message-time">{formatTime(message.timestamp || new Date())}</span>
+          <span data-testid="text-message-time">{formatTime(new Date(message.created_at || ''))}</span>
         </div>
         
         {/* Reactions */}

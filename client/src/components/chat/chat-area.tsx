@@ -6,12 +6,14 @@ import MessageBubble from "./message-bubble";
 import EmojiPicker from "./emoji-picker";
 import { apiRequest } from "@/lib/queryClient";
 import type { ChatWithLastMessage, MessageWithReactions, User } from "@shared/schema";
+import type { TypingUser } from "@/lib";
 import { ArrowLeft, Phone, Video, Info, Plus, Send, Smile } from "lucide-react";
 
 interface ChatAreaProps {
   activeChat: ChatWithLastMessage | null;
   messages: MessageWithReactions[];
   currentUser: User;
+  typingUsers: TypingUser[];
   onSendTyping: (isTyping: boolean) => void;
   onSendMessage: (content: string) => Promise<void>;
   onToggleSidebar: () => void;
@@ -21,6 +23,7 @@ export default function ChatArea({
   activeChat,
   messages,
   currentUser,
+  typingUsers,
   onSendTyping,
   onSendMessage,
   onToggleSidebar
@@ -79,6 +82,18 @@ export default function ChatArea({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setMessageText(value);
+    
+    // Send typing indicator
+    if (value.trim().length > 0) {
+      onSendTyping(true);
+    } else {
+      onSendTyping(false);
     }
   };
 
@@ -229,12 +244,25 @@ export default function ChatArea({
 
         {/* Messages */}
         {messages.map((message, index) => {
-          const isOwn = message.senderId === currentUser.id;
-          const showAvatar = !isOwn && (
+          const isOwn = message.sender_id === currentUser.id;
+          // Show avatar for all messages when appropriate
+          const showAvatar = (
             index === 0 || 
-            messages[index - 1].senderId !== message.senderId ||
-            (message.timestamp?.getTime() || 0) - (messages[index - 1].timestamp?.getTime() || 0) > 5 * 60 * 1000
+            messages[index - 1].sender_id !== message.sender_id ||
+            (new Date(message.created_at || '').getTime()) - (new Date(messages[index - 1].created_at || '').getTime()) > 5 * 60 * 1000
           );
+
+          // Debug: Log avatar display logic
+          console.log(`Message ${index} avatar logic:`, {
+            messageId: message.id,
+            sender_id: message.sender_id,
+            currentUser_id: currentUser.id,
+            isOwn,
+            showAvatar,
+            sender: message.sender,
+            index,
+            prevSenderId: index > 0 ? messages[index - 1].sender_id : 'N/A'
+          });
 
           return (
             <MessageBubble
@@ -248,9 +276,22 @@ export default function ChatArea({
           );
         })}
 
-        {/* Typing Indicator - Only show when OTHER user is typing */}
-        {/* Note: Real-time typing indicators would be implemented here for other users */}
-        {/* For now, we don't show any typing indicators since we don't have real-time setup */}
+        {/* Typing Indicator */}
+        {typingUsers.length > 0 && (
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <span>
+              {typingUsers.length === 1 
+                ? `${typingUsers[0].user_id === activeChat?.otherUser?.id ? activeChat.otherUser?.name : 'Someone'} is typing...`
+                : `${typingUsers.length} people are typing...`
+              }
+            </span>
+          </div>
+        )}
 
         <div ref={messagesEndRef} />
       </div>
@@ -273,7 +314,7 @@ export default function ChatArea({
                 ref={textareaRef}
                 placeholder="Type a message..."
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
+                onChange={handleInputChange}
                 onKeyPress={handleKeyPress}
                 className="flex-1 bg-transparent resize-none outline-none max-h-32 min-h-[24px]"
                 rows={1}

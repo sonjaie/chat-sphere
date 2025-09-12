@@ -241,7 +241,7 @@ export default function Sidebar({
                     {chatName}
                   </p>
                   <span className="text-xs text-muted-foreground" data-testid={`text-chat-time-${chat.id}`}>
-                    {formatTime(chat.last_message?.created_at)}
+                    {formatTime(chat.last_message?.created_at ? new Date(chat.last_message.created_at) : undefined)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-1">
@@ -249,12 +249,12 @@ export default function Sidebar({
                     {chat.last_message?.content || "No messages yet"}
                   </p>
                   <div className="flex items-center space-x-1">
-                    {chat.unreadCount > 0 && (
+                    {chat.unread_count > 0 && (
                       <span 
                         className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center"
                         data-testid={`badge-unread-${chat.id}`}
                       >
-                        {chat.unreadCount}
+                        {chat.unread_count}
                       </span>
                     )}
                   </div>
