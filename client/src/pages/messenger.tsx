@@ -379,6 +379,17 @@ export default function MessengerPage() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await AuthService.signOut();
+      // The auth state change will be handled by the auth context
+      // and the user will be redirected to the login page
+      window.location.reload(); // Force reload to clear all state
+    } catch (error) {
+      console.error('Failed to logout:', error);
+    }
+  };
+
   if (!currentUser) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -414,6 +425,7 @@ export default function MessengerPage() {
           onChatSelect={handleChatSelect}
           onStorySelect={handleStorySelect}
           onStartChat={handleStartChat}
+          onLogout={handleLogout}
           data-testid="sidebar"
         />
       </div>

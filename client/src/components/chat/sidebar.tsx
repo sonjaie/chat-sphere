@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { User, ChatWithLastMessage, StoryWithUser } from "@shared/schema";
-import { Search, Plus, Settings } from "lucide-react";
+import { Search, Plus, Settings, LogOut } from "lucide-react";
 
 interface SidebarProps {
   currentUser: User;
@@ -14,6 +14,7 @@ interface SidebarProps {
   onChatSelect: (chat: ChatWithLastMessage) => void;
   onStorySelect: (story: StoryWithUser) => void;
   onStartChat: (user: User) => void;
+  onLogout: () => void;
 }
 
 export default function Sidebar({
@@ -24,7 +25,8 @@ export default function Sidebar({
   allUsers,
   onChatSelect,
   onStorySelect,
-  onStartChat
+  onStartChat,
+  onLogout
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -132,6 +134,16 @@ export default function Sidebar({
             data-testid="button-settings"
           >
             <Settings className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-2 hover:bg-muted rounded-full"
+            onClick={onLogout}
+            data-testid="button-logout"
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4" />
           </Button>
         </div>
       </div>
