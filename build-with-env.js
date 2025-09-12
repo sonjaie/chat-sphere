@@ -4,8 +4,8 @@
  * Build script that ensures environment variables are available during Vite build
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
+import { execSync } from 'child_process';
+import fs from 'fs';
 
 console.log('🔧 Starting build process with environment variables...');
 

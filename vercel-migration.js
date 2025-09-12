@@ -5,8 +5,8 @@
  * This script runs during Vercel deployment to handle database migrations
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
+import { execSync } from 'child_process';
+import fs from 'fs';
 
 async function runMigrations() {
   try {
