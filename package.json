@@ -15,7 +15,7 @@
     "docker:dev": "docker-compose up dev",
     "docker:prod": "docker-compose up app",
     "docker:down": "docker-compose down",
-    "vercel-build": "node vercel-migration.js && npm run build",
+    "vercel-build": "node vercel-migration.js && node build-with-env.js",
     "postinstall": "npm run db:generate-types || echo 'Skipping type generation - Supabase not configured'",
     "db:start": "npx supabase start",
     "db:stop": "npx supabase stop",

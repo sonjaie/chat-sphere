@@ -3,8 +3,21 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// More detailed error message for debugging
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
+  const missingVars = []
+  if (!supabaseUrl) missingVars.push('VITE_SUPABASE_URL')
+  if (!supabaseAnonKey) missingVars.push('VITE_SUPABASE_ANON_KEY')
+  
+  const errorMessage = `Missing Supabase environment variables: ${missingVars.join(', ')}. 
+  
+In development: Check your client/.env.local file
+In production: Check your Vercel environment variables
+
+Current environment: ${import.meta.env.MODE}
+Available env vars: ${Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')).join(', ')}`
+  
+  throw new Error(errorMessage)
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
