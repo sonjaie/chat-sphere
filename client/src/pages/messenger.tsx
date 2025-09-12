@@ -154,7 +154,7 @@ export default function MessengerPage() {
     if (!currentUser) return;
     
     // Don't create the chat yet, just set up a temporary chat for messaging
-    const tempChat = {
+    const tempChat: ChatWithDetails = {
       id: `temp-${otherUser.id}`,
       type: '1:1' as const,
       name: null,
@@ -165,7 +165,7 @@ export default function MessengerPage() {
       updated_at: new Date().toISOString(),
       members: [],
       otherUser: otherUser,
-      last_message: null,
+      last_message: undefined,
       unread_count: 0,
     };
     
