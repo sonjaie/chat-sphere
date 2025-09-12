@@ -87,7 +87,7 @@ jobs:
     - name: Link to Supabase Project
       run: |
         echo "Linking to Supabase project: $SUPABASE_PROJECT_ID"
-        npx supabase link --project-ref $SUPABASE_PROJECT_ID --yes
+        supabase link --project-ref $SUPABASE_PROJECT_ID
     
     - name: Run Database Migrations
       run: |
@@ -96,12 +96,12 @@ jobs:
         # - Checking if tables exist (skips if they do)
         # - Checking if columns exist (skips if they do)
         # - Only applies new migrations
-        npx supabase db push
+        supabase db push
     
     - name: Generate TypeScript Types
       run: |
         echo "Generating TypeScript types..."
-        npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > shared/schema.ts
+        supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > shared/schema.ts
     
     - name: Build Application
       run: npm run build
