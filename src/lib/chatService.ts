@@ -1,0 +1,283 @@
+import { supabase } from './supabase'
+import type { Database } from './supabase'
+
+type Chat = Database['public']['Tables']['chats']['Row']
+type InsertChat = Database['public']['Tables']['chats']['Insert']
+type UpdateChat = Database['public']['Tables']['chats']['Update']
+type ChatMember = Database['public']['Tables']['chat_members']['Row']
+type InsertChatMember = Database['public']['Tables']['chat_members']['Insert']
+type Message = Database['public']['Tables']['messages']['Row']
+type InsertMessage = Database['public']['Tables']['messages']['Insert']
+type User = Database['public']['Tables']['users']['Row']
+
+export interface ChatWithDetails extends Chat {
+  members: (ChatMember & { user: User })[]
+  last_message?: Message & { sender: User }
+  unread_count: number
+}
+
+export interface MessageWithDetails extends Message {
+  sender: User
+  reactions: Database['public']['Tables']['reactions']['Row'][]
+  reply_to?: Message & { sender: User }
+}
+
+export class ChatService {
+  static async getChats(userId: string): Promise<ChatWithDetails[]> {
+    // Get all chats where user is a member
+    const { data: chatMembers, error: membersError } = await supabase
+      .from('chat_members')
+      .select(`
+        chat_id,
+        chats (*)
+      `)
+      .eq('user_id', userId)
+
+    if (membersError) throw membersError
+
+    const chats: ChatWithDetails[] = []
+
+    for (const member of chatMembers || []) {
+      const chat = member.chats as Chat
+      
+      // Get chat members with user details
+      const { data: chatMembersWithUsers, error: membersError } = await supabase
+        .from('chat_members')
+        .select(`
+          *,
+          user:users(*)
+        `)
+        .eq('chat_id', chat.id)
+
+      if (membersError) throw membersError
+
+      // Get last message
+      const { data: lastMessage, error: messageError } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:users(*)
+        `)
+        .eq('chat_id', chat.id)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (messageError && messageError.code !== 'PGRST116') {
+        throw messageError
+      }
+
+      // Get unread count
+      const { data: lastRead, error: readError } = await supabase
+        .from('chat_members')
+        .select('last_read_at')
+        .eq('chat_id', chat.id)
+        .eq('user_id', userId)
+        .single()
+
+      let unreadCount = 0
+      if (lastRead?.last_read_at) {
+        const { count, error: countError } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('chat_id', chat.id)
+          .neq('sender_id', userId)
+          .eq('is_deleted', false)
+          .gt('created_at', lastRead.last_read_at)
+
+        if (countError) throw countError
+        unreadCount = count || 0
+      } else {
+        const { count, error: countError } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('chat_id', chat.id)
+          .neq('sender_id', userId)
+          .eq('is_deleted', false)
+
+        if (countError) throw countError
+        unreadCount = count || 0
+      }
+
+      chats.push({
+        ...chat,
+        members: chatMembersWithUsers || [],
+        last_message: lastMessage as any,
+        unread_count: unreadCount,
+      })
+    }
+
+    return chats.sort((a, b) => {
+      const aTime = a.last_message?.created_at || a.created_at
+      const bTime = b.last_message?.created_at || b.created_at
+      return new Date(bTime).getTime() - new Date(aTime).getTime()
+    })
+  }
+
+  static async getChat(chatId: string, userId: string): Promise<ChatWithDetails | null> {
+    // Verify user is a member of the chat
+    const { data: membership, error: membershipError } = await supabase
+      .from('chat_members')
+      .select('chat_id')
+      .eq('chat_id', chatId)
+      .eq('user_id', userId)
+      .single()
+
+    if (membershipError || !membership) return null
+
+    // Get chat details
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('id', chatId)
+      .single()
+
+    if (chatError || !chat) return null
+
+    // Get members with user details
+    const { data: members, error: membersError } = await supabase
+      .from('chat_members')
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .eq('chat_id', chatId)
+
+    if (membersError) throw membersError
+
+    // Get last message
+    const { data: lastMessage, error: messageError } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        sender:users(*)
+      `)
+      .eq('chat_id', chatId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (messageError && messageError.code !== 'PGRST116') {
+      throw messageError
+    }
+
+    // Get unread count
+    const { data: lastRead, error: readError } = await supabase
+      .from('chat_members')
+      .select('last_read_at')
+      .eq('chat_id', chatId)
+      .eq('user_id', userId)
+      .single()
+
+    let unreadCount = 0
+    if (lastRead?.last_read_at) {
+      const { count, error: countError } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', chatId)
+        .neq('sender_id', userId)
+        .eq('is_deleted', false)
+        .gt('created_at', lastRead.last_read_at)
+
+      if (countError) throw countError
+      unreadCount = count || 0
+    }
+
+    return {
+      ...chat,
+      members: members || [],
+      last_message: lastMessage as any,
+      unread_count: unreadCount,
+    }
+  }
+
+  static async createChat(data: InsertChat, memberIds: string[]): Promise<Chat> {
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .insert(data)
+      .select()
+      .single()
+
+    if (chatError || !chat) throw chatError
+
+    // Add creator as admin
+    const chatMembers: InsertChatMember[] = [
+      {
+        chat_id: chat.id,
+        user_id: data.created_by!,
+        role: 'admin',
+      },
+      // Add other members
+      ...memberIds.map(userId => ({
+        chat_id: chat.id,
+        user_id: userId,
+        role: 'member' as const,
+      })),
+    ]
+
+    const { error: membersError } = await supabase
+      .from('chat_members')
+      .insert(chatMembers)
+
+    if (membersError) throw membersError
+
+    return chat
+  }
+
+  static async addMember(chatId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('chat_members')
+      .insert({
+        chat_id: chatId,
+        user_id: userId,
+        role: 'member',
+      })
+
+    if (error) throw error
+  }
+
+  static async removeMember(chatId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('chat_members')
+      .delete()
+      .eq('chat_id', chatId)
+      .eq('user_id', userId)
+
+    if (error) throw error
+  }
+
+  static async updateChat(chatId: string, updates: UpdateChat): Promise<void> {
+    const { error } = await supabase
+      .from('chats')
+      .update(updates)
+      .eq('id', chatId)
+
+    if (error) throw error
+  }
+
+  static async markAsRead(chatId: string, userId: string, messageId?: string): Promise<void> {
+    const updateData: any = {
+      last_read_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase
+      .from('chat_members')
+      .update(updateData)
+      .eq('chat_id', chatId)
+      .eq('user_id', userId)
+
+    if (error) throw error
+
+    // Mark specific message as read if provided
+    if (messageId) {
+      await supabase
+        .from('message_reads')
+        .upsert({
+          message_id: messageId,
+          user_id: userId,
+        })
+    }
+  }
+}

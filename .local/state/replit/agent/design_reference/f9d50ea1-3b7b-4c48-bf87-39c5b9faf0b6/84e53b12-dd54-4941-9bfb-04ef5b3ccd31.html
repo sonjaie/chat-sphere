@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessengerClone - Chat Application</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                    success: "var(--success)",
+                    warning: "var(--warning)",
+                },
+                fontFamily: {
+                    sans: ["Inter", "system-ui", "sans-serif"],
+                }
+            },
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(0 0% 100%);
+            --foreground: hsl(224 71% 4%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(224 71% 4%);
+            --primary: hsl(142 76% 36%);
+            --primary-foreground: hsl(0 0% 98%);
+            --secondary: hsl(220 91% 56%);
+            --secondary-foreground: hsl(0 0% 98%);
+            --muted: hsl(220 14% 96%);
+            --muted-foreground: hsl(220 8% 46%);
+            --accent: hsl(220 14% 96%);
+            --accent-foreground: hsl(224 71% 4%);
+            --destructive: hsl(0 84% 60%);
+            --destructive-foreground: hsl(0 0% 98%);
+            --border: hsl(220 13% 91%);
+            --input: hsl(220 13% 91%);
+            --ring: hsl(142 76% 36%);
+            --success: hsl(142 76% 36%);
+            --warning: hsl(38 92% 50%);
+            --radius: 0.75rem;
+        }
+        
+        .dark {
+            --background: hsl(224 71% 4%);
+            --foreground: hsl(213 31% 91%);
+            --card: hsl(224 71% 4%);
+            --card-foreground: hsl(213 31% 91%);
+            --primary: hsl(142 76% 36%);
+            --primary-foreground: hsl(0 0% 98%);
+            --secondary: hsl(220 91% 56%);
+            --secondary-foreground: hsl(0 0% 98%);
+            --muted: hsl(215 27% 17%);
+            --muted-foreground: hsl(217 10% 64%);
+            --accent: hsl(215 27% 17%);
+            --accent-foreground: hsl(213 31% 91%);
+            --destructive: hsl(0 63% 31%);
+            --destructive-foreground: hsl(0 85% 97%);
+            --border: hsl(215 27% 17%);
+            --input: hsl(215 27% 17%);
+            --ring: hsl(142 76% 36%);
+            --success: hsl(142 76% 36%);
+            --warning: hsl(38 92% 50%);
+        }
+
+        .story-gradient {
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 50%, #4facfe 100%);
+        }
+
+        .message-bubble-sent {
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 100%);
+        }
+
+        .message-bubble-received {
+            background: hsl(var(--muted));
+        }
+
+        .online-indicator {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .typing-indicator {
+            animation: typing 1.5s infinite ease-in-out;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        .scroll-area {
+            scrollbar-width: thin;
+            scrollbar-color: hsl(var(--muted)) transparent;
+        }
+
+        .scroll-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: hsl(var(--muted));
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans">
+    <!-- @COMPONENT: MessengerApp [main application container] -->
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- @COMPONENT: Sidebar [navigation and user profile] -->
+        <div class="hidden lg:flex lg:flex-col lg:w-80 bg-card border-r border-border">
+            <!-- User Profile Header -->
+            <div class="flex items-center justify-between p-4 border-b border-border">
+                <div class="flex items-center space-x-3">
+                    <!-- Profile picture of a professional young woman with a friendly smile -->
+                    <div class="relative">
+                        <img src="https://pixabay.com/get/g4b124ddb955b5241d926291645a389175d0154331f0fa691a872f4667720a5d0b3f6335b0e66c8bb7091962e245f9017e153ff8ad7f4e13f9845b678c6e04c94_1280.jpg" 
+                             alt="Sarah Johnson" class="w-10 h-10 rounded-full object-cover" />
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-card online-indicator"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-sm" data-bind="currentUser.name">Sarah Johnson</h3>
+                        <p class="text-xs text-muted-foreground">Active now</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button class="p-2 hover:bg-muted rounded-full transition-colors">
+                        <i class="fas fa-plus w-4 h-4"></i>
+                    </button>
+                    <button class="p-2 hover:bg-muted rounded-full transition-colors">
+                        <i class="fas fa-cog w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stories Section -->
+            <div class="p-4 border-b border-border">
+                <h4 class="font-semibold text-sm mb-3">Stories</h4>
+                <div class="flex space-x-3 overflow-x-auto pb-2">
+                    <!-- Add Story -->
+                    <div class="flex-shrink-0 text-center cursor-pointer">
+                        <div class="w-14 h-14 bg-muted rounded-full flex items-center justify-center border-2 border-dashed border-border hover:border-primary transition-colors">
+                            <i class="fas fa-plus text-muted-foreground"></i>
+                        </div>
+                        <p class="text-xs mt-1 text-muted-foreground">Add Story</p>
+                    </div>
+
+                    <!-- @MAP: stories.map(story => ( -->
+                    <!-- User story showing a scenic mountain landscape -->
+                    <div class="flex-shrink-0 text-center cursor-pointer" data-story-id="1">
+                        <div class="w-14 h-14 story-gradient rounded-full p-0.5">
+                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                                 alt="Mike Chen" class="w-full h-full rounded-full object-cover border-2 border-background" />
+                        </div>
+                        <p class="text-xs mt-1" data-bind="story.user.name">Mike Chen</p>
+                    </div>
+
+                    <!-- User story featuring a coffee shop scene with latte art -->
+                    <div class="flex-shrink-0 text-center cursor-pointer" data-story-id="2">
+                        <div class="w-14 h-14 story-gradient rounded-full p-0.5">
+                            <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                                 alt="Emma Wilson" class="w-full h-full rounded-full object-cover border-2 border-background" />
+                        </div>
+                        <p class="text-xs mt-1" data-bind="story.user.name">Emma Wilson</p>
+                    </div>
+
+                    <!-- User story with a vibrant city nightscape -->
+                    <div class="flex-shrink-0 text-center cursor-pointer" data-story-id="3">
+                        <div class="w-14 h-14 story-gradient rounded-full p-0.5">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                                 alt="Alex Rodriguez" class="w-full h-full rounded-full object-cover border-2 border-background" />
+                        </div>
+                        <p class="text-xs mt-1" data-bind="story.user.name">Alex Rodriguez</p>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="p-4">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-3 text-muted-foreground"></i>
+                    <input type="text" placeholder="Search conversations..." 
+                           class="w-full pl-10 pr-4 py-2 bg-muted border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+            </div>
+
+            <!-- Chat List -->
+            <div class="flex-1 overflow-y-auto scroll-area">
+                <!-- @MAP: chats.map(chat => ( -->
+                <!-- Active Chat Item -->
+                <div class="flex items-center p-4 hover:bg-muted cursor-pointer border-l-4 border-primary bg-muted/50" data-chat-id="1">
+                    <div class="relative flex-shrink-0">
+                        <!-- Portrait of a friendly young man with a warm smile -->
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                             alt="Alex Rodriguez" class="w-12 h-12 rounded-full object-cover" />
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-card online-indicator"></div>
+                    </div>
+                    <div class="ml-3 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="font-semibold text-sm truncate" data-bind="chat.name">Alex Rodriguez</p>
+                            <span class="text-xs text-muted-foreground">2:30 PM</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-muted-foreground truncate" data-bind="chat.lastMessage">That sounds great! Let's do it 🎉</p>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-check-double text-primary text-xs"></i>
+                                <span class="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Regular Chat Items -->
+                <div class="flex items-center p-4 hover:bg-muted cursor-pointer transition-colors" data-chat-id="2">
+                    <div class="relative flex-shrink-0">
+                        <!-- Portrait of a professional woman with confident expression -->
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                             alt="Emma Wilson" class="w-12 h-12 rounded-full object-cover" />
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-card"></div>
+                    </div>
+                    <div class="ml-3 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="font-semibold text-sm truncate" data-bind="chat.name">Emma Wilson</p>
+                            <span class="text-xs text-muted-foreground">1:45 PM</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-muted-foreground truncate" data-bind="chat.lastMessage">Thanks for the help earlier!</p>
+                            <i class="fas fa-check-double text-muted-foreground text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Chat -->
+                <div class="flex items-center p-4 hover:bg-muted cursor-pointer transition-colors" data-chat-id="3">
+                    <div class="relative flex-shrink-0">
+                        <div class="w-12 h-12 bg-secondary rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-secondary-foreground"></i>
+                        </div>
+                        <div class="absolute -bottom-1 -right-1 w-6 h-4 bg-muted rounded-full flex items-center justify-center border border-border">
+                            <span class="text-xs font-semibold">5</span>
+                        </div>
+                    </div>
+                    <div class="ml-3 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="font-semibold text-sm truncate" data-bind="chat.name">Design Team</p>
+                            <span class="text-xs text-muted-foreground">12:30 PM</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-muted-foreground truncate" data-bind="chat.lastMessage">Mike: The new mockups look amazing!</p>
+                            <span class="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center p-4 hover:bg-muted cursor-pointer transition-colors" data-chat-id="4">
+                    <div class="relative flex-shrink-0">
+                        <!-- Portrait of a young man with casual attire and friendly demeanor -->
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                             alt="Mike Chen" class="w-12 h-12 rounded-full object-cover" />
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-muted-foreground rounded-full border-2 border-card"></div>
+                    </div>
+                    <div class="ml-3 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="font-semibold text-sm truncate" data-bind="chat.name">Mike Chen</p>
+                            <span class="text-xs text-muted-foreground">11:20 AM</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-muted-foreground truncate" data-bind="chat.lastMessage">See you tomorrow!</p>
+                            <i class="fas fa-check text-muted-foreground text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center p-4 hover:bg-muted cursor-pointer transition-colors" data-chat-id="5">
+                    <div class="relative flex-shrink-0">
+                        <!-- Portrait of a smiling woman with professional headshot style -->
+                        <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                             alt="Lisa Park" class="w-12 h-12 rounded-full object-cover" />
+                    </div>
+                    <div class="ml-3 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="font-semibold text-sm truncate" data-bind="chat.name">Lisa Park</p>
+                            <span class="text-xs text-muted-foreground">Yesterday</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-muted-foreground truncate" data-bind="chat.lastMessage">Good luck with the presentation!</p>
+                            <i class="fas fa-check-double text-primary text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+        </div>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- @COMPONENT: ChatArea [main chat interface] -->
+        <div class="flex-1 flex flex-col">
+            <!-- Chat Header -->
+            <div class="flex items-center justify-between p-4 border-b border-border bg-card">
+                <div class="flex items-center space-x-3">
+                    <button class="lg:hidden p-2 hover:bg-muted rounded-full">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="relative">
+                        <!-- Portrait of Alex Rodriguez showing active chat participant -->
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" 
+                             alt="Alex Rodriguez" class="w-10 h-10 rounded-full object-cover" />
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-card online-indicator"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold" data-bind="activeChat.name">Alex Rodriguez</h3>
+                        <p class="text-sm text-muted-foreground" data-bind="activeChat.status">Active now</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button class="p-2 hover:bg-muted rounded-full transition-colors">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button class="p-2 hover:bg-muted rounded-full transition-colors">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="p-2 hover:bg-muted rounded-full transition-colors">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 scroll-area" id="messagesContainer">
+                <!-- @MAP: messages.map(message => ( -->
+                
+                <!-- Date Separator -->
+                <div class="flex justify-center">
+                    <span class="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full">Today</span>
+                </div>
+
+                <!-- Received Message -->
+                <div class="flex items-start space-x-2" data-message-id="1">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=40&h=40" 
+                         alt="Alex Rodriguez" class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" />
+                    <div class="flex flex-col space-y-1 max-w-xs lg:max-w-md">
+                        <div class="message-bubble-received px-4 py-2 rounded-2xl rounded-bl-md">
+                            <p class="text-sm" data-bind="message.content">Hey Sarah! How's your day going?</p>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <span data-bind="message.timestamp">2:25 PM</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sent Message -->
+                <div class="flex items-end justify-end space-x-2" data-message-id="2">
+                    <div class="flex flex-col space-y-1 max-w-xs lg:max-w-md items-end">
+                        <div class="message-bubble-sent text-primary-foreground px-4 py-2 rounded-2xl rounded-br-md">
+                            <p class="text-sm" data-bind="message.content">Pretty good! Just finished a big project. How about you?</p>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <span data-bind="message.timestamp">2:26 PM</span>
+                            <i class="fas fa-check-double text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Received Message with Image -->
+                <div class="flex items-start space-x-2" data-message-id="3">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=40&h=40" 
+                         alt="Alex Rodriguez" class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" />
+                    <div class="flex flex-col space-y-1 max-w-xs lg:max-w-md">
+                        <div class="message-bubble-received px-2 py-2 rounded-2xl rounded-bl-md">
+                            <!-- Beautiful mountain landscape with snow-capped peaks -->
+                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=200" 
+                                 alt="Mountain landscape" class="rounded-lg w-full h-auto mb-2" />
+                            <p class="text-sm px-2 pb-1" data-bind="message.content">Just got back from this amazing hike!</p>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <span data-bind="message.timestamp">2:28 PM</span>
+                            <!-- Reaction indicators -->
+                            <div class="flex items-center space-x-1">
+                                <div class="bg-background border border-border rounded-full px-2 py-0.5 flex items-center space-x-1">
+                                    <span>😍</span>
+                                    <span class="text-xs">2</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sent Message with Reactions -->
+                <div class="flex items-end justify-end space-x-2" data-message-id="4">
+                    <div class="flex flex-col space-y-1 max-w-xs lg:max-w-md items-end">
+                        <div class="message-bubble-sent text-primary-foreground px-4 py-2 rounded-2xl rounded-br-md">
+                            <p class="text-sm" data-bind="message.content">Wow! That view is absolutely stunning! 🏔️</p>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <span data-bind="message.timestamp">2:29 PM</span>
+                            <i class="fas fa-check-double text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Received Message -->
+                <div class="flex items-start space-x-2" data-message-id="5">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=40&h=40" 
+                         alt="Alex Rodriguez" class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" />
+                    <div class="flex flex-col space-y-1 max-w-xs lg:max-w-md">
+                        <div class="message-bubble-received px-4 py-2 rounded-2xl rounded-bl-md">
+                            <p class="text-sm" data-bind="message.content">I know right! We should plan a hiking trip together sometime</p>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <span data-bind="message.timestamp">2:30 PM</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sent Message -->
+                <div class="flex items-end justify-end space-x-2" data-message-id="6">
+                    <div class="flex flex-col space-y-1 max-w-xs lg:max-w-md items-end">
+                        <div class="message-bubble-sent text-primary-foreground px-4 py-2 rounded-2xl rounded-br-md">
+                            <p class="text-sm" data-bind="message.content">That sounds great! Let's do it 🎉</p>
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <span data-bind="message.timestamp">2:30 PM</span>
+                            <i class="fas fa-check-double text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Typing Indicator -->
+                <div class="flex items-start space-x-2" data-mock="true">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=40&h=40" 
+                         alt="Alex Rodriguez" class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" />
+                    <div class="message-bubble-received px-4 py-3 rounded-2xl rounded-bl-md">
+                        <div class="flex items-center space-x-1">
+                            <div class="w-2 h-2 bg-muted-foreground rounded-full typing-indicator"></div>
+                            <div class="w-2 h-2 bg-muted-foreground rounded-full typing-indicator" style="animation-delay: 0.2s;"></div>
+                            <div class="w-2 h-2 bg-muted-foreground rounded-full typing-indicator" style="animation-delay: 0.4s;"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+
+            <!-- Message Input -->
+            <div class="p-4 border-t border-border bg-card">
+                <div class="flex items-end space-x-3">
+                    <button class="p-2 hover:bg-muted rounded-full transition-colors flex-shrink-0" data-event="click:openFileDialog">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    
+                    <div class="flex-1 relative">
+                        <div class="flex items-end bg-muted rounded-2xl px-4 py-2 min-h-[44px]">
+                            <textarea 
+                                placeholder="Type a message..." 
+                                class="flex-1 bg-transparent resize-none outline-none max-h-32 min-h-[24px]"
+                                rows="1"
+                                data-event="input:handleMessageInput"
+                                data-implementation="Should auto-resize based on content"></textarea>
+                            <div class="flex items-center space-x-2 ml-2">
+                                <button class="p-1 hover:bg-background/20 rounded-full transition-colors" data-event="click:toggleEmojiPicker">
+                                    <i class="fas fa-smile"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Emoji Picker (Hidden by default) -->
+                        <div class="absolute bottom-full right-0 mb-2 bg-card border border-border rounded-lg shadow-lg p-3 hidden w-64" id="emojiPicker">
+                            <div class="grid grid-cols-8 gap-1">
+                                <button class="p-2 hover:bg-muted rounded text-lg">😀</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😃</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😄</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😁</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😆</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😅</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😂</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">🤣</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">❤️</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">👍</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">👎</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">👌</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">🎉</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">🔥</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">💯</button>
+                                <button class="p-2 hover:bg-muted rounded text-lg">😍</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="p-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors flex-shrink-0" 
+                            data-event="click:sendMessage" data-implementation="Should send message and clear input">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: ChatArea -->
+
+        <!-- @COMPONENT: ChatInfo [right sidebar for chat details] -->
+        <div class="hidden xl:flex xl:flex-col xl:w-80 bg-card border-l border-border">
+            <!-- Chat Info Header -->
+            <div class="p-6 text-center border-b border-border">
+                <!-- Large profile picture of Alex Rodriguez for chat info panel -->
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200" 
+                     alt="Alex Rodriguez" class="w-20 h-20 rounded-full object-cover mx-auto mb-3" />
+                <h3 class="font-semibold text-lg" data-bind="activeChatUser.name">Alex Rodriguez</h3>
+                <p class="text-muted-foreground" data-bind="activeChatUser.status">Active now</p>
+            </div>
+
+            <!-- Chat Actions -->
+            <div class="p-4 border-b border-border">
+                <div class="grid grid-cols-4 gap-4 text-center">
+                    <button class="p-3 hover:bg-muted rounded-lg transition-colors">
+                        <i class="fas fa-phone text-xl mb-1"></i>
+                        <p class="text-xs">Call</p>
+                    </button>
+                    <button class="p-3 hover:bg-muted rounded-lg transition-colors">
+                        <i class="fas fa-video text-xl mb-1"></i>
+                        <p class="text-xs">Video</p>
+                    </button>
+                    <button class="p-3 hover:bg-muted rounded-lg transition-colors">
+                        <i class="fas fa-user-plus text-xl mb-1"></i>
+                        <p class="text-xs">Add</p>
+                    </button>
+                    <button class="p-3 hover:bg-muted rounded-lg transition-colors">
+                        <i class="fas fa-search text-xl mb-1"></i>
+                        <p class="text-xs">Search</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Shared Media -->
+            <div class="p-4 border-b border-border">
+                <h4 class="font-semibold mb-3">Shared Photos</h4>
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- Thumbnail of shared mountain landscape photo -->
+                    <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100" 
+                         alt="Shared photo" class="rounded-lg object-cover w-full h-20 cursor-pointer hover:opacity-80 transition-opacity" />
+                    <!-- Thumbnail of shared urban sunset photo -->
+                    <img src="https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100" 
+                         alt="Shared photo" class="rounded-lg object-cover w-full h-20 cursor-pointer hover:opacity-80 transition-opacity" />
+                    <!-- Thumbnail of shared nature scene photo -->
+                    <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100" 
+                         alt="Shared photo" class="rounded-lg object-cover w-full h-20 cursor-pointer hover:opacity-80 transition-opacity" />
+                </div>
+                <button class="w-full mt-3 py-2 text-primary hover:bg-muted rounded-lg transition-colors">
+                    View All
+                </button>
+            </div>
+
+            <!-- Chat Settings -->
+            <div class="p-4">
+                <div class="space-y-3">
+                    <button class="w-full flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-bell"></i>
+                            <span>Notifications</span>
+                        </div>
+                        <i class="fas fa-toggle-on text-primary"></i>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-eye-slash"></i>
+                            <span>Hide Chat</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-ban"></i>
+                            <span>Block User</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors text-destructive">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-trash"></i>
+                            <span>Delete Chat</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: ChatInfo -->
+    </div>
+    <!-- @END_COMPONENT: MessengerApp -->
+
+    <!-- @COMPONENT: StoryViewer [modal for viewing stories] -->
+    <div class="fixed inset-0 bg-black/90 z-50 hidden" id="storyModal">
+        <div class="flex items-center justify-center h-full p-4">
+            <div class="relative max-w-sm w-full">
+                <!-- Story Progress Bars -->
+                <div class="absolute top-4 left-4 right-4 z-10">
+                    <div class="flex space-x-1">
+                        <div class="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
+                            <div class="h-full bg-white rounded-full w-full"></div>
+                        </div>
+                        <div class="flex-1 h-0.5 bg-white/30 rounded-full"></div>
+                        <div class="flex-1 h-0.5 bg-white/30 rounded-full"></div>
+                    </div>
+                </div>
+                
+                <!-- Story Header -->
+                <div class="absolute top-8 left-4 right-4 z-10">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=50&h=50" 
+                                 alt="Story author" class="w-8 h-8 rounded-full object-cover" />
+                            <div>
+                                <p class="text-white font-semibold text-sm" data-bind="story.author">Alex Rodriguez</p>
+                                <p class="text-white/70 text-xs" data-bind="story.timeAgo">2h ago</p>
+                            </div>
+                        </div>
+                        <button class="text-white/70 hover:text-white p-2" data-event="click:closeStoryModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Story Content -->
+                <!-- Story content showing an epic mountain adventure scene -->
+                <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=700" 
+                     alt="Story content" class="w-full h-[600px] object-cover rounded-2xl" />
+                
+                <!-- Story Caption -->
+                <div class="absolute bottom-20 left-4 right-4">
+                    <p class="text-white text-sm" data-bind="story.caption">Amazing hike today! The view was worth every step 🏔️ #adventure</p>
+                </div>
+                
+                <!-- Story Reply -->
+                <div class="absolute bottom-4 left-4 right-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="Reply to story..." 
+                               class="flex-1 bg-white/20 backdrop-blur-sm text-white placeholder-white/70 rounded-full px-4 py-2 border border-white/30" />
+                        <button class="text-white/70 hover:text-white p-2">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                        <button class="text-white/70 hover:text-white p-2">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Navigation arrows -->
+                <button class="absolute left-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white p-4" data-event="click:previousStory">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white p-4" data-event="click:nextStory">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: StoryViewer -->
+
+    <!-- Mobile Navigation -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
+        <div class="flex justify-around">
+            <button class="p-2 text-primary">
+                <i class="fas fa-comments"></i>
+            </button>
+            <button class="p-2 text-muted-foreground hover:text-foreground">
+                <i class="fas fa-circle-notch"></i>
+            </button>
+            <button class="p-2 text-muted-foreground hover:text-foreground">
+                <i class="fas fa-users"></i>
+            </button>
+            <button class="p-2 text-muted-foreground hover:text-foreground">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // @STATE: currentUser:User, chats:Chat[], activeChat:Chat, messages:Message[], stories:Story[]
+
+        // Dummy TypeScript-like data structures for reference
+        const dummyData = {
+            currentUser: {
+                id: '1',
+                name: 'Sarah Johnson',
+                profilePicture: 'https://images.unsplash.com/photo-1494790108755-2616b04ce1a1',
+                status: 'online'
+            },
+            users: [
+                {
+                    id: '2',
+                    name: 'Alex Rodriguez',
+                    profilePicture: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
+                    lastSeen: new Date(),
+                    status: 'online'
+                },
+                {
+                    id: '3',
+                    name: 'Emma Wilson',
+                    profilePicture: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80',
+                    lastSeen: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+                    status: 'online'
+                }
+                // More users...
+            ],
+            chats: [
+                {
+                    id: '1',
+                    type: '1:1',
+                    name: 'Alex Rodriguez',
+                    members: ['1', '2'],
+                    lastMessage: 'That sounds great! Let\'s do it 🎉',
+                    lastMessageTime: new Date(),
+                    unreadCount: 2
+                },
+                {
+                    id: '3',
+                    type: 'group',
+                    name: 'Design Team',
+                    members: ['1', '2', '3', '4', '5'],
+                    lastMessage: 'Mike: The new mockups look amazing!',
+                    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+                    unreadCount: 1
+                }
+                // More chats...
+            ],
+            messages: [
+                {
+                    id: '1',
+                    chatId: '1',
+                    senderId: '2',
+                    content: 'Hey Sarah! How\'s your day going?',
+                    timestamp: new Date(Date.now() - 1000 * 60 * 5),
+                    type: 'text',
+                    readBy: ['1']
+                },
+                {
+                    id: '2',
+                    chatId: '1',
+                    senderId: '1',
+                    content: 'Pretty good! Just finished a big project. How about you?',
+                    timestamp: new Date(Date.now() - 1000 * 60 * 4),
+                    type: 'text',
+                    readBy: ['2']
+                }
+                // More messages...
+            ],
+            stories: [
+                {
+                    id: '1',
+                    userId: '2',
+                    media: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
+                    caption: 'Amazing hike today! The view was worth every step 🏔️ #adventure',
+                    expiryTime: new Date(Date.now() + 1000 * 60 * 60 * 20), // 20 hours from now
+                    viewers: ['1']
+                }
+                // More stories...
+            ],
+            reactions: [
+                {
+                    messageId: '3',
+                    userId: '1',
+                    emoji: '😍'
+                }
+                // More reactions...
+            ]
+        };
+
+        // @FUNCTIONALITY: Basic interaction handlers for the mockup
+        (function() {
+            // Story modal functionality
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-story-id]')) {
+                    document.getElementById('storyModal').classList.remove('hidden');
+                    // TODO: Load and display the selected story
+                }
+                
+                if (e.target.closest('[data-event="click:closeStoryModal"]')) {
+                    document.getElementById('storyModal').classList.add('hidden');
+                }
+            });
+
+            // Emoji picker toggle
+            document.addEventListener('click', function(e) {
+                const emojiButton = e.target.closest('[data-event="click:toggleEmojiPicker"]');
+                if (emojiButton) {
+                    const emojiPicker = document.getElementById('emojiPicker');
+                    emojiPicker.classList.toggle('hidden');
+                }
+                
+                // Hide emoji picker when clicking outside
+                if (!e.target.closest('#emojiPicker') && !e.target.closest('[data-event="click:toggleEmojiPicker"]')) {
+                    document.getElementById('emojiPicker').classList.add('hidden');
+                }
+            });
+
+            // Chat selection
+            document.addEventListener('click', function(e) {
+                const chatItem = e.target.closest('[data-chat-id]');
+                if (chatItem) {
+                    // Remove active state from all chats
+                    document.querySelectorAll('[data-chat-id]').forEach(chat => {
+                        chat.classList.remove('bg-muted/50', 'border-l-4', 'border-primary');
+                    });
+                    
+                    // Add active state to clicked chat
+                    chatItem.classList.add('bg-muted/50', 'border-l-4', 'border-primary');
+                    
+                    // TODO: Load messages for the selected chat
+                    // TODO: Update chat header information
+                }
+            });
+
+            // Auto-resize textarea
+            const messageInput = document.querySelector('textarea[data-event="input:handleMessageInput"]');
+            if (messageInput) {
+                messageInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+                });
+            }
+
+            // Simulate sending messages
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-event="click:sendMessage"]')) {
+                    const messageInput = document.querySelector('textarea[data-event="input:handleMessageInput"]');
+                    if (messageInput && messageInput.value.trim()) {
+                        // TODO: Send message to backend
+                        // TODO: Add message to chat
+                        // TODO: Update chat list preview
+                        messageInput.value = '';
+                        messageInput.style.height = 'auto';
+                        console.log('Message would be sent:', messageInput.value);
+                    }
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    const messageInput = document.querySelector('textarea[data-event="input:handleMessageInput"]');
+                    if (document.activeElement === messageInput) {
+                        e.preventDefault();
+                        document.querySelector('[data-event="click:sendMessage"]').click();
+                    }
+                }
+            });
+
+            // TODO: Implement real-time message updates
+            // TODO: Implement typing indicators
+            // TODO: Implement read receipts
+            // TODO: Implement message reactions
+            // TODO: Implement file upload functionality
+            // TODO: Implement story creation and viewing
+            // TODO: Implement user presence updates
+            // TODO: Implement push notifications
+        })();
+    </script>
+</body>
+</html>
