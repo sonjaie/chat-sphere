@@ -55,25 +55,16 @@ jobs:
         VITE_SUPABASE_SECRET_KEY: ${{ secrets.VITE_SUPABASE_SECRET_KEY }}
         SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         
-    - name: Test build locally
-      run: |
-        echo "🧪 Testing build locally..."
-        npm run start &
-        SERVER_PID=$!
-        sleep 20
-        if curl -f http://localhost:3000; then
-          echo "✅ Build test successful!"
-          kill $SERVER_PID
-        else
-          echo "⚠️ Build test failed, but continuing..."
-          kill $SERVER_PID || true
-        fi
 
   # Job 2: Deploy to Vercel (only runs on main branch and after successful build)
   deploy-vercel:
     needs: test-and-build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
     
     steps:
     - name: Checkout code
@@ -94,16 +85,11 @@ jobs:
         version: latest
     
     - name: Link to Supabase Project
-      env:
-        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       run: |
         echo "Linking to Supabase project: $SUPABASE_PROJECT_ID"
         npx supabase link --project-ref $SUPABASE_PROJECT_ID --yes
     
     - name: Run Database Migrations
-      env:
-        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       run: |
         echo "Running database migrations..."
         # This command automatically handles:
@@ -113,11 +99,9 @@ jobs:
         npx supabase db push
     
     - name: Generate TypeScript Types
-      env:
-        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       run: |
         echo "Generating TypeScript types..."
-        npx supabase gen types typescript --project-id ${{ secrets.SUPABASE_PROJECT_ID }} > shared/schema.ts
+        npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > shared/schema.ts
     
     - name: Build Application
       run: npm run build
