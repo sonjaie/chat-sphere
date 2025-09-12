@@ -5,7 +5,7 @@ export type {
   MessageWithDetails as MessageWithReactions,
   StoryWithDetails as StoryWithUser,
   Database,
-} from '../src/lib'
+} from '../client/src/lib'
 
 // Legacy type aliases for backward compatibility
 export type User = AuthUser

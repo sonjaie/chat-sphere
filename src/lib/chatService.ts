@@ -14,12 +14,19 @@ export interface ChatWithDetails extends Chat {
   members: (ChatMember & { user: User })[]
   last_message?: Message & { sender: User }
   unread_count: number
+  otherUser?: User // For 1:1 chats
+  lastMessage?: string
+  lastMessageTime?: Date
 }
 
 export interface MessageWithDetails extends Message {
   sender: User
   reactions: Database['public']['Tables']['reactions']['Row'][]
   reply_to?: Message & { sender: User }
+  chatId?: string // For compatibility
+  senderId?: string // For compatibility
+  timestamp?: string // For compatibility
+  readBy?: Database['public']['Tables']['message_reads']['Row'][] // For compatibility
 }
 
 export class ChatService {
@@ -38,7 +45,7 @@ export class ChatService {
     const chats: ChatWithDetails[] = []
 
     for (const member of chatMembers || []) {
-      const chat = member.chats as Chat
+      const chat = member.chats as any as Chat
       
       // Get chat members with user details
       const { data: chatMembersWithUsers, error: membersError } = await supabase

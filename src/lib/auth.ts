@@ -8,6 +8,7 @@ export interface AuthUser {
   profile_picture?: string
   status: 'online' | 'offline' | 'away'
   last_seen: string
+  profilePicture?: string // For compatibility
 }
 
 export class AuthService {

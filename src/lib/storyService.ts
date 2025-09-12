@@ -11,6 +11,9 @@ export interface StoryWithDetails extends Story {
   user: User
   viewers: StoryView[]
   is_viewed?: boolean
+  media?: string // For compatibility
+  createdAt?: string // For compatibility
+  userId?: string // For compatibility
 }
 
 export class StoryService {
@@ -151,15 +154,19 @@ export class StoryService {
     if (storiesError) throw storiesError
 
     // Get total views
+    const { data: userStories, error: userStoriesError } = await supabase
+      .from('stories')
+      .select('id')
+      .eq('user_id', userId)
+
+    if (userStoriesError) throw userStoriesError
+
+    const storyIds = userStories?.map(story => story.id) || []
+    
     const { data: storyViews, error: viewsError } = await supabase
       .from('story_views')
       .select('story_id')
-      .in('story_id', 
-        supabase
-          .from('stories')
-          .select('id')
-          .eq('user_id', userId)
-      )
+      .in('story_id', storyIds)
 
     if (viewsError) throw viewsError
 

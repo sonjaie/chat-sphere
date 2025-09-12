@@ -7,7 +7,7 @@ import { AuthForm } from "@/components/auth/auth-form";
 import MessengerPage from "@/pages/messenger";
 import NotFound from "@/pages/not-found";
 import { useQuery } from "@tanstack/react-query";
-import { AuthService } from "@/lib";
+import { AuthService } from "./lib";
 
 function Router() {
   const { data: currentUser, isLoading } = useQuery({

@@ -4,8 +4,8 @@ import Sidebar from "@/components/chat/sidebar";
 import ChatArea from "@/components/chat/chat-area";
 import ChatInfo from "@/components/chat/chat-info";
 import StoryViewer from "@/components/chat/story-viewer";
-import { AuthService, ChatService, MessageService, StoryService } from "@/lib";
-import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser } from "@/lib";
+import { AuthService, ChatService, MessageService, StoryService } from "../lib";
+import type { ChatWithDetails, MessageWithDetails, StoryWithDetails, AuthUser } from "../lib";
 
 export default function MessengerPage() {
   const [activeChat, setActiveChat] = useState<ChatWithDetails | null>(null);
