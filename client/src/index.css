@@ -118,3 +118,49 @@
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-10px); }
 }
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  /* Improve touch targets */
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better text selection on mobile */
+  .message-bubble-sent,
+  .message-bubble-received {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Tablet-specific improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Medium touch targets for tablets */
+  button, [role="button"] {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  /* Better spacing for tablet */
+  .chat-input-container {
+    padding: 1rem 1.25rem;
+  }
+}
+
+/* Desktop improvements */
+@media (min-width: 1025px) {
+  /* Standard desktop touch targets */
+  button, [role="button"] {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

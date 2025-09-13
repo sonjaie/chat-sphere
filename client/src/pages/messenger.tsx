@@ -412,7 +412,7 @@ export default function MessengerPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 min-w-0 flex flex-col h-full">
+      <div className="flex-1 min-w-0 flex flex-col h-screen">
         <ChatArea
           key={activeChat?.id || 'no-chat'}
           activeChat={activeChat as unknown as ChatWithLastMessage | null}
@@ -444,36 +444,38 @@ export default function MessengerPage() {
         />
       )}
 
-      {/* Mobile Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
-        <div className="flex justify-around">
-          <button 
-            className="p-2 text-primary"
-            onClick={() => setShowMobileSidebar(true)}
-            data-testid="button-mobile-chats"
-          >
-            <i className="fas fa-comments"></i>
-          </button>
-          <button 
-            className="p-2 text-muted-foreground hover:text-foreground"
-            data-testid="button-mobile-stories"
-          >
-            <i className="fas fa-circle-notch"></i>
-          </button>
-          <button 
-            className="p-2 text-muted-foreground hover:text-foreground"
-            data-testid="button-mobile-groups"
-          >
-            <i className="fas fa-users"></i>
-          </button>
-          <button 
-            className="p-2 text-muted-foreground hover:text-foreground"
-            data-testid="button-mobile-settings"
-          >
-            <i className="fas fa-cog"></i>
-          </button>
+      {/* Mobile Navigation - Only show when no active chat */}
+      {!activeChat && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
+          <div className="flex justify-around">
+            <button 
+              className="p-2 text-primary"
+              onClick={() => setShowMobileSidebar(true)}
+              data-testid="button-mobile-chats"
+            >
+              <i className="fas fa-comments"></i>
+            </button>
+            <button 
+              className="p-2 text-muted-foreground hover:text-foreground"
+              data-testid="button-mobile-stories"
+            >
+              <i className="fas fa-circle-notch"></i>
+            </button>
+            <button 
+              className="p-2 text-muted-foreground hover:text-foreground"
+              data-testid="button-mobile-groups"
+            >
+              <i className="fas fa-users"></i>
+            </button>
+            <button 
+              className="p-2 text-muted-foreground hover:text-foreground"
+              data-testid="button-mobile-settings"
+            >
+              <i className="fas fa-cog"></i>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

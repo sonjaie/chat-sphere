@@ -158,86 +158,86 @@ export default function ChatArea({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-screen">
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between p-3 sm:p-4 md:p-5 border-b border-border bg-card">
+        <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 min-w-0 flex-1">
           <Button
             variant="ghost"
             size="sm"
-            className="lg:hidden p-2"
+            className="lg:hidden p-2 flex-shrink-0 min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] md:min-h-[48px] md:min-w-[48px]"
             onClick={onToggleSidebar}
             data-testid="button-back"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </Button>
           
           <div className="relative">
             {activeChat.type === "group" ? (
-              <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                <i className="fas fa-users text-secondary-foreground" />
+              <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                <i className="fas fa-users text-secondary-foreground text-sm sm:text-base md:text-lg" />
               </div>
             ) : (
-              <div className="relative">
-                <Avatar className="w-10 h-10">
+              <div className="relative flex-shrink-0">
+                <Avatar className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12">
                   <AvatarImage 
                     src={chatAvatar || ""} 
                     alt={chatName}
                   />
-                  <AvatarFallback>
+                  <AvatarFallback className="text-sm sm:text-base md:text-lg">
                     {chatName.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 {activeChat.otherUser?.status === "online" && (
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-card online-indicator" />
+                  <div className="absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 md:w-4 md:h-4 bg-success rounded-full border-2 border-card online-indicator" />
                 )}
               </div>
             )}
           </div>
           
-          <div>
-            <h3 className="font-semibold" data-testid="text-chat-header-name">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-sm sm:text-base md:text-lg truncate" data-testid="text-chat-header-name">
               {chatName}
             </h3>
-            <p className="text-sm text-muted-foreground" data-testid="text-chat-status">
+            <p className="text-xs sm:text-sm md:text-sm text-muted-foreground truncate" data-testid="text-chat-status">
               {getStatusText()}
             </p>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 flex-shrink-0">
           <Button 
             variant="ghost" 
             size="sm"
-            className="p-2 hover:bg-muted rounded-full"
+            className="p-2 sm:p-2 md:p-3 hover:bg-muted rounded-full min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] md:min-h-[48px] md:min-w-[48px]"
             data-testid="button-call"
           >
-            <Phone className="w-4 h-4" />
+            <Phone className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </Button>
           <Button 
             variant="ghost" 
             size="sm"
-            className="p-2 hover:bg-muted rounded-full"
+            className="p-2 sm:p-2 md:p-3 hover:bg-muted rounded-full min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] md:min-h-[48px] md:min-w-[48px]"
             data-testid="button-video"
           >
-            <Video className="w-4 h-4" />
+            <Video className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </Button>
           <Button 
             variant="ghost" 
             size="sm"
-            className="p-2 hover:bg-muted rounded-full"
+            className="p-2 sm:p-2 md:p-3 hover:bg-muted rounded-full min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] md:min-h-[48px] md:min-w-[48px]"
             data-testid="button-info"
           >
-            <Info className="w-4 h-4" />
+            <Info className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </Button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-area min-h-0" data-testid="messages-container">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 md:space-y-5 scroll-area min-h-0" data-testid="messages-container">
         {/* Date Separator */}
         <div className="flex justify-center">
-          <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full">
+          <span className="bg-muted text-muted-foreground text-xs sm:text-sm md:text-sm px-3 sm:px-4 md:px-5 py-1 sm:py-1.5 md:py-2 rounded-full">
             Today
           </span>
         </div>
@@ -289,45 +289,45 @@ export default function ChatArea({
       </div>
 
       {/* Message Input */}
-      <div className="p-4 border-t border-border bg-card">
-        <div className="flex items-end space-x-3">
+      <div className="p-3 sm:p-4 border-t border-border bg-card flex-shrink-0">
+        <div className="flex items-end space-x-2 sm:space-x-3 md:space-x-4">
           <Button 
             variant="ghost" 
             size="sm"
-            className="p-2 hover:bg-muted rounded-full flex-shrink-0"
+            className="p-2 sm:p-2 md:p-3 hover:bg-muted rounded-full flex-shrink-0 min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] md:min-h-[48px] md:min-w-[48px]"
             data-testid="button-attach"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </Button>
           
           <div className="flex-1 relative">
-            <div className="flex items-end bg-muted rounded-2xl px-4 py-2 min-h-[44px]">
+            <div className="flex items-end bg-muted rounded-2xl px-3 sm:px-4 md:px-5 py-2 sm:py-2 md:py-3 min-h-[40px] sm:min-h-[44px] md:min-h-[48px]">
               <textarea
                 ref={textareaRef}
                 placeholder="Type a message..."
                 value={messageText}
                 onChange={handleInputChange}
                 onKeyPress={handleKeyPress}
-                className="flex-1 bg-transparent resize-none outline-none max-h-32 min-h-[24px]"
+                className="flex-1 bg-transparent resize-none outline-none max-h-32 min-h-[20px] sm:min-h-[24px] md:min-h-[28px] text-sm sm:text-base md:text-base"
                 rows={1}
                 data-testid="input-message"
               />
-              <div className="flex items-center space-x-2 ml-2">
+              <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 ml-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="p-1 hover:bg-background/20 rounded-full"
+                  className="p-1 sm:p-1 md:p-2 hover:bg-background/20 rounded-full min-h-[32px] min-w-[32px] sm:min-h-[36px] sm:min-w-[36px] md:min-h-[40px] md:min-w-[40px]"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   data-testid="button-emoji"
                 >
-                  <Smile className="w-4 h-4" />
+                  <Smile className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                 </Button>
               </div>
             </div>
             
             {/* Emoji Picker */}
             {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-2 z-10">
+              <div className="absolute bottom-full right-0 mb-2 z-10 w-full max-w-[calc(100vw-2rem)] sm:max-w-[320px] md:max-w-[360px] lg:max-w-none lg:w-auto">
                 <EmojiPicker 
                   onEmojiSelect={handleEmojiSelect}
                   onClose={() => setShowEmojiPicker(false)}
@@ -338,12 +338,12 @@ export default function ChatArea({
           </div>
           
           <Button
-            className="p-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 flex-shrink-0"
+            className="p-2 sm:p-2 md:p-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 flex-shrink-0 min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] md:min-h-[48px] md:min-w-[48px]"
             onClick={handleSendMessage}
             disabled={!messageText.trim() || sendMessageMutation.isPending}
             data-testid="button-send"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </Button>
         </div>
       </div>
