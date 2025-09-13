@@ -218,7 +218,6 @@ export class MessageService {
           filter: `chat_id=eq.${chatId}`,
         },
         async (payload) => {
-          console.log('Real-time message INSERT received:', payload);
           const message = payload.new as Message
           const { data: messageWithDetails, error } = await supabase
             .from('messages')
@@ -236,7 +235,6 @@ export class MessageService {
             .single()
 
           if (!error && messageWithDetails) {
-            console.log('Real-time message details fetched:', messageWithDetails);
             onNewMessage(messageWithDetails as any)
           } else {
             console.error('Error fetching real-time message details:', error);
@@ -315,7 +313,6 @@ export class MessageService {
           table: 'messages',
         },
         async (payload) => {
-          console.log('Global real-time message INSERT received:', payload);
           const message = payload.new as Message
           
           // Check if the user is a member of this chat
@@ -326,7 +323,6 @@ export class MessageService {
             .eq('user_id', userId)
             .single()
 
-          console.log('Membership check for user', userId, 'in chat', message.chat_id, ':', membership);
 
           if (membership) {
             const { data: messageWithDetails, error } = await supabase
@@ -345,7 +341,6 @@ export class MessageService {
               .single()
 
             if (!error && messageWithDetails) {
-              console.log('Global real-time message details fetched:', messageWithDetails);
               onNewMessage(messageWithDetails as any)
             } else {
               console.error('Error fetching global real-time message details:', error);

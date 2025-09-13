@@ -155,7 +155,7 @@ export default function MessageBubble({
                   data-testid={`reaction-${emoji}`}
                 >
                   <span>{emoji}</span>
-                  <span>{data.count}</span>
+                  <span>{(data as { count: number; userIds: string[] }).count}</span>
                 </div>
               ))}
             </div>
@@ -249,7 +249,7 @@ export default function MessageBubble({
                 data-testid={`reaction-${emoji}`}
               >
                 <span>{emoji}</span>
-                <span>{data.count}</span>
+                <span>{(data as { count: number; userIds: string[] }).count}</span>
               </div>
             ))}
           </div>

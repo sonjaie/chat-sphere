@@ -106,7 +106,7 @@ export default function StoryViewer({ story, onClose }: StoryViewerProps) {
                   {story.user.name}
                 </p>
                 <p className="text-white/70 text-xs" data-testid="text-story-time">
-                  {formatTimeAgo(story.createdAt!)}
+                  {formatTimeAgo(new Date(story.createdAt!))}
                 </p>
               </div>
             </div>

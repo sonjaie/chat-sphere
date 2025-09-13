@@ -31,7 +31,6 @@ export interface MessageWithDetails extends Message {
 
 export class ChatService {
   static async getChats(userId: string): Promise<ChatWithDetails[]> {
-    console.log('Getting chats for user:', userId);
     
     // Get all chats where user is a member
     const { data: chatMembers, error: membersError } = await supabase
@@ -47,7 +46,6 @@ export class ChatService {
       throw membersError;
     }
     
-    console.log('Chat members found:', chatMembers);
 
     const chats: ChatWithDetails[] = []
 
@@ -151,10 +149,9 @@ export class ChatService {
     const sortedChats = chats.sort((a, b) => {
       const aTime = a.last_message?.created_at || a.created_at
       const bTime = b.last_message?.created_at || b.created_at
-      return new Date(bTime).getTime() - new Date(aTime).getTime()
+      return new Date(bTime || new Date(0)).getTime() - new Date(aTime || new Date(0)).getTime()
     });
     
-    console.log('Final sorted chats:', sortedChats);
     return sortedChats;
   }
 
@@ -348,7 +345,6 @@ export class ChatService {
   }
 
   static async createChatWithUser(currentUserId: string, otherUserId: string): Promise<ChatWithDetails> {
-    console.log('Creating chat between users:', currentUserId, 'and', otherUserId);
     
     // Check if a 1:1 chat already exists between these users
     // First get all chat IDs for the current user
@@ -362,7 +358,6 @@ export class ChatService {
       throw checkError;
     }
     
-    console.log('User chats found:', userChats);
 
     // Check each chat to see if it's a 1:1 chat with the other user
     for (const userChat of userChats || []) {
@@ -397,7 +392,6 @@ export class ChatService {
     }
 
     // Create new 1:1 chat
-    console.log('Creating new 1:1 chat...');
     const { data: newChat, error: chatError } = await supabase
       .from('chats')
       .insert({
@@ -415,7 +409,6 @@ export class ChatService {
       throw chatError;
     }
     
-    console.log('New chat created:', newChat);
 
     // Add both users as members
     const { error: membersError } = await supabase

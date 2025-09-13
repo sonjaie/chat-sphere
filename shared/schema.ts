@@ -44,6 +44,7 @@ export interface MessageWithDetails {
   sender: AuthUser
   reactions: any[]
   reply_to?: MessageWithDetails
+  readBy?: string[] // Array of user IDs who have read the message
 }
 
 export interface StoryWithDetails {

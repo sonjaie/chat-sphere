@@ -92,7 +92,6 @@ export class AuthService {
 
     // If profile doesn't exist, create it automatically
     if (profileError && profileError.code === 'PGRST116') {
-      console.log('User profile not found, creating one...')
       
       const { data: newProfile, error: createError } = await supabase
         .from('users')
@@ -109,7 +108,6 @@ export class AuthService {
 
       // If creation fails due to duplicate email, try to fetch the existing profile
       if (createError && createError.code === '23505') {
-        console.log('Profile already exists, fetching existing profile...')
         
         const { data: existingProfile, error: fetchError } = await supabase
           .from('users')
@@ -198,7 +196,6 @@ export class AuthService {
           table: 'users',
         },
         (payload) => {
-          console.log('New user registered:', payload.new);
           onNewUser(payload.new as User);
         }
       )
@@ -210,7 +207,6 @@ export class AuthService {
           table: 'users',
         },
         (payload) => {
-          console.log('User updated:', payload.new);
           onUserUpdate(payload.new as User);
         }
       )

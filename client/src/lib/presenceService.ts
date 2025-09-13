@@ -185,10 +185,13 @@ export class PresenceService {
         })
         
         // Send to Supabase REST API
-        navigator.sendBeacon(
-          `${supabase.supabaseUrl}/rest/v1/users?id=eq.${this.currentUserId}`,
-          data
-        )
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        if (supabaseUrl) {
+          navigator.sendBeacon(
+            `${supabaseUrl}/rest/v1/users?id=eq.${this.currentUserId}`,
+            data
+          )
+        }
       }
     }
   }
