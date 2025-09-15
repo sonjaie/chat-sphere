@@ -147,13 +147,33 @@ export class AuthService {
 
     if (profileError || !profile) return null
 
+    // Overlay presence_state if available to avoid stale users.status
+    let effectiveStatus: 'online' | 'offline' | 'away' = profile.status as any
+    let effectiveLastSeen: string = profile.last_seen
+    try {
+      const { data: p } = await supabase
+        .from('presence_state')
+        .select('state,last_activity_at,changed_at')
+        .eq('user_id', profile.id)
+        .maybeSingle()
+      if (p?.state) {
+        const s = String(p.state).toLowerCase()
+        if (s === 'online' || s === 'offline' || s === 'away') {
+          effectiveStatus = s
+        }
+        effectiveLastSeen = p.last_activity_at || p.changed_at || effectiveLastSeen
+      }
+    } catch {
+      // ignore overlay errors; fall back to users.status
+    }
+
     return {
       id: profile.id,
       email: profile.email,
       name: profile.name,
       profile_picture: profile.profile_picture,
-      status: profile.status,
-      last_seen: profile.last_seen,
+      status: effectiveStatus,
+      last_seen: effectiveLastSeen,
     }
   }
 
@@ -176,7 +196,31 @@ export class AuthService {
       .order('name')
 
     if (error) throw error
-    return users || []
+
+    const all: User[] = users || []
+
+    // Fetch presence snapshot and overlay "state" onto users.status for accuracy
+    try {
+      const { data: presences } = await supabase
+        .from('presence_state')
+        .select('user_id,state,last_activity_at,changed_at')
+      const map = new Map<string, { state: string; last_seen?: string }>()
+      presences?.forEach((p: any) => {
+        map.set(p.user_id, {
+          state: String(p.state).toLowerCase(),
+          last_seen: p.last_activity_at || p.changed_at,
+        })
+      })
+      return all.map((u) => {
+        const p = map.get(u.id as unknown as string)
+        if (!p) return u
+        const status = (p.state === 'online' || p.state === 'offline' || p.state === 'away') ? p.state : (u as any).status
+        return { ...u, status, last_seen: p.last_seen || (u as any).last_seen }
+      })
+    } catch {
+      // If overlay fails, return original users
+      return all
+    }
   }
 
   /**
