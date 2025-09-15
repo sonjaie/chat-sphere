@@ -130,8 +130,25 @@ export class ChatService {
             .select('*')
             .eq('id', otherMemberId)
             .single()
-          
+
           if (!userError && otherUserData) {
+            // Overlay presence_state for accurate status
+            try {
+              const { data: presence } = await supabase
+                .from('presence_state')
+                .select('state,last_activity_at,changed_at')
+                .eq('user_id', otherMemberId)
+                .maybeSingle()
+              if (presence?.state) {
+                const s = String(presence.state).toLowerCase()
+                if (s === 'online' || s === 'offline' || s === 'away') {
+                  (otherUserData as any).status = s
+                }
+                (otherUserData as any).last_seen = presence.last_activity_at || presence.changed_at || (otherUserData as any).last_seen
+              }
+            } catch {
+              // ignore overlay failures
+            }
             otherUser = otherUserData
           }
         }
@@ -240,8 +257,25 @@ export class ChatService {
           .select('*')
           .eq('id', otherMemberId)
           .single()
-        
+
         if (!userError && otherUserData) {
+          // Overlay presence_state for accurate status
+          try {
+            const { data: presence } = await supabase
+              .from('presence_state')
+              .select('state,last_activity_at,changed_at')
+              .eq('user_id', otherMemberId)
+              .maybeSingle()
+            if (presence?.state) {
+              const s = String(presence.state).toLowerCase()
+              if (s === 'online' || s === 'offline' || s === 'away') {
+                (otherUserData as any).status = s
+              }
+              (otherUserData as any).last_seen = presence.last_activity_at || presence.changed_at || (otherUserData as any).last_seen
+            }
+          } catch {
+            // ignore overlay failures
+          }
           otherUser = otherUserData
         }
       }
