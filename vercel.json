@@ -8,5 +8,11 @@
   "outputDirectory": "dist/public",
   "framework": "vite",
   "installCommand": "npm ci",
-  "devCommand": "npm run dev"
+  "devCommand": "npm run dev",
+  "crons": [
+    {
+      "path": "/api/presence-cron",
+      "schedule": "*/1 * * * *"
+    }
+  ]
 }
