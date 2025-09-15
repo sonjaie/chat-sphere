@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { getAdminClient, getThresholds, countActiveConnections, upsertPresence, setDisconnectGrace, corsHeaders, ok, err } from '../_shared/presence.ts'
+import { getAdminClient, getThresholds, countActiveConnections, upsertPresence, setDisconnectGrace, corsHeaders, ok, err, ensureUsersRow } from '../_shared/presence.ts'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -14,6 +14,9 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({})) as { deviceId?: string }
     const deviceId = body.deviceId || req.headers.get('x-device-id')
     if (!deviceId) return err('deviceId required', 400)
+
+    const okUser = await ensureUsersRow(sb, user as any)
+    if (!okUser) return err('User not provisioned', 500)
 
     // Mark device as disconnected
     const nowIso = new Date().toISOString()

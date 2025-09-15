@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { getAdminClient, corsHeaders, ok, err } from '../_shared/presence.ts'
+import { getAdminClient, corsHeaders, ok, err, ensureUsersRow } from '../_shared/presence.ts'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -11,6 +11,9 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({})) as { deviceId?: string }
     const deviceId = body.deviceId || req.headers.get('x-device-id')
+
+    const okUser = await ensureUsersRow(sb, user as any)
+    if (!okUser) return err('User not provisioned', 500)
     if (!deviceId) return ok({ ok: true })
 
     const nowIso = new Date().toISOString()

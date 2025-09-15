@@ -6,7 +6,7 @@ export type PresenceState = 'ONLINE' | 'AWAY' | 'OFFLINE'
 
 export const corsHeaders: HeadersInit = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-device-id',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
@@ -32,6 +32,51 @@ export function getThresholds() {
     DISCONNECT_GRACE_SECONDS,
     ACTIVITY_THROTTLE_SECONDS,
   }
+}
+
+export async function ensureUsersRow(sb: SupabaseClient, user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+  // Already exists by id?
+  const { data: existingById, error: idErr } = await sb
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (!idErr && existingById) return true
+
+  const displayName = (user.user_metadata as any)?.full_name || user.email || 'User'
+  const primaryEmail = user.email || `${user.id}@example.local`
+  const fallbackEmail = `${user.id}@presence.local`
+
+  // Try insert with primary email
+  let insert = await sb.from('users').insert({
+    id: user.id,
+    email: primaryEmail,
+    name: displayName,
+    password: 'supabase_auth_handled',
+  })
+  if (insert.error) {
+    // If duplicate email, try with fallback email to satisfy unique constraint
+    const code = (insert.error as any).code
+    if (code === '23505') {
+      insert = await sb.from('users').insert({
+        id: user.id,
+        email: fallbackEmail,
+        name: displayName,
+        password: 'supabase_auth_handled',
+      })
+      if (insert.error) return false
+    } else {
+      return false
+    }
+  }
+
+  // Ensure created
+  const { data: ensured } = await sb
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle()
+  return !!ensured
 }
 
 export async function fetchConnectedCount(sb: SupabaseClient, userId: string): Promise<number> {

@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { getAdminClient, getThresholds, countActiveConnections, upsertPresence, setActivityTTL, clearAwayTTL, corsHeaders, ok, err } from '../_shared/presence.ts'
+import { getAdminClient, getThresholds, countActiveConnections, upsertPresence, setActivityTTL, clearAwayTTL, corsHeaders, ok, err, ensureUsersRow } from '../_shared/presence.ts'
 
 // Records user activity (mouse/keyboard/touch/nav), throttled server-side.
 serve(async (req) => {
@@ -14,6 +14,10 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({})) as { deviceId?: string }
     const deviceId = body.deviceId || req.headers.get('x-device-id')
+
+    // Ensure application users row exists to satisfy FK and status updates
+    const okUser = await ensureUsersRow(sb, user as any)
+    if (!okUser) return err('User not provisioned', 500)
 
     const now = Date.now()
     const nowIso = new Date(now).toISOString()
