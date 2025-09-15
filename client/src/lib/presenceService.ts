@@ -107,6 +107,10 @@ export class PresenceService {
     this.stopHeartbeat()
     this.heartbeatTimer = setInterval(async () => {
       if (!this.currentUserId || !this.deviceId) return
+      // Only heartbeat when the tab is visible and focused to avoid false ONLINE
+      const isVisible = typeof document !== 'undefined' ? !document.hidden : true
+      const hasFocus = typeof document !== 'undefined' ? document.hasFocus?.() : true
+      if (!isVisible || !hasFocus) return
       try {
         await this.invoke('presence-heartbeat', { deviceId: this.deviceId })
       } catch (e) {
@@ -162,9 +166,12 @@ export class PresenceService {
    */
   private static handleVisibilityChange = () => {
     if (document.hidden) {
-      // Backgrounded; do not change server state immediately
+      // Backgrounded: stop heartbeats to allow grace/TTL to transition state
+      this.stopHeartbeat()
       this.setAway()
     } else {
+      // Foreground: resume and mark activity
+      this.startHeartbeat()
       this.setOnline()
     }
   }
@@ -193,12 +200,14 @@ export class PresenceService {
   /**
    * Handle window focus
    */
-  private static handleFocus = () => { this.setOnline() }
+  private static handleFocus = () => { this.startHeartbeat(); this.setOnline() }
 
   /**
    * Handle window blur
    */
   private static handleBlur = () => {
+    // When the window loses focus, pause heartbeats; if focus doesn't return, move toward AWAY
+    this.stopHeartbeat()
     setTimeout(() => { if (!document.hasFocus()) this.setAway() }, 5000)
   }
 
