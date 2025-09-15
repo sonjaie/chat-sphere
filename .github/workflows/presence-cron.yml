@@ -1,0 +1,29 @@
+name: presence-cron
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # every 5 minutes (GitHub minimum)
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke Supabase presence-cron
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY secrets" >&2
+            exit 1
+          fi
+          curl -sS -X POST "$VITE_SUPABASE_URL/functions/v1/presence-cron" \
+            -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            -o /tmp/resp.json -w "HTTP:%{http_code}\n" | tee /tmp/status.txt
+          code=$(sed -n 's/^HTTP:\([0-9][0-9][0-9]\)$/\1/p' /tmp/status.txt)
+          echo "Response:" && cat /tmp/resp.json
+          test "$code" = "200"
+
