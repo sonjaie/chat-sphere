@@ -13,14 +13,17 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
             echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY secrets" >&2
             exit 1
           fi
+          # Prefer service role for Authorization if provided; fallback to anon
+          TOKEN=${SUPABASE_SERVICE_ROLE_KEY:-$VITE_SUPABASE_ANON_KEY}
           curl -sS -X POST "$VITE_SUPABASE_URL/functions/v1/presence-cron" \
             -H "apikey: $VITE_SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{}' \
             -o /tmp/resp.json -w "HTTP:%{http_code}\n" | tee /tmp/status.txt
