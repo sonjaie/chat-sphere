@@ -218,9 +218,9 @@ export class PresenceService {
     const channel = supabase
       .channel('presence-state')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'presence_state' }, (payload) => {
-        const row = payload.new || payload.old
+        const row = payload.new || payload.old as any
         if (!row) return
-        const status = (row.state as string)?.toLowerCase?.() || 'offline'
+        const status = (row.state as string)?.toLowerCase?.() as 'online' | 'offline' | 'away' || 'offline'
         const last_seen = row.last_activity_at || row.changed_at
         window.dispatchEvent(new CustomEvent('presenceUpdate', {
           detail: { user_id: row.user_id, status, last_seen }
@@ -250,9 +250,9 @@ export class PresenceService {
     const channel = supabase
       .channel(`presence:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'presence_state', filter: `user_id=eq.${userId}` }, (payload) => {
-        const row = payload.new || payload.old
+        const row = payload.new || payload.old as any
         if (!row) return
-        const status = (row.state as string)?.toLowerCase?.() || 'offline'
+        const status = (row.state as string)?.toLowerCase?.() as 'online' | 'offline' | 'away' || 'offline'
         const last_seen = row.last_activity_at || row.changed_at
         onPresenceUpdate({ user_id: userId, status, last_seen })
       })
@@ -296,10 +296,29 @@ export class PresenceService {
 
   // Wrapper to safely invoke Edge Functions in environments where functions may be mocked/absent
   private static async invoke(name: string, body?: any) {
-    const anySb: any = supabase as any
-    if (anySb?.functions?.invoke) {
-      return anySb.functions.invoke(name, { body })
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        console.warn('No auth session available for Edge Function call')
+        return Promise.resolve({ data: null })
+      }
+
+      const { data, error } = await supabase.functions.invoke(name, {
+        body,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (error) {
+        console.error(`Edge Function ${name} error:`, error)
+        throw error
+      }
+
+      return { data }
+    } catch (error) {
+      console.error(`Failed to invoke Edge Function ${name}:`, error)
+      throw error
     }
-    return Promise.resolve({ data: null })
   }
 }
