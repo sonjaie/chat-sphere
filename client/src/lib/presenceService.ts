@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { AuthService } from './auth'
 
 export interface PresenceUser {
   user_id: string
@@ -8,63 +7,73 @@ export interface PresenceUser {
 }
 
 /**
- * Real-time presence service using Supabase Broadcast and database updates.
- * Tracks user online/offline status and handles browser events.
+ * Presence service backed by Supabase Edge Functions + Postgres realtime.
+ * Implements multi-device presence with activity/away/offline semantics.
  */
 export class PresenceService {
   private static channels = new Map<string, ReturnType<typeof supabase.channel>>()
   private static currentUserId: string | null = null
-  private static heartbeatInterval: NodeJS.Timeout | null = null
-  private static isOnline = true
-  private static lastHeartbeat = 0
-  private static readonly HEARTBEAT_INTERVAL = 30000 // 30 seconds
-  private static readonly OFFLINE_TIMEOUT = 60000 // 1 minute
+  private static deviceId: string | null = null
+  private static heartbeatTimer: any = null
+  private static activityThrottleAt = 0
+  private static isOnline = true // Local UI hint only; server truth in presence_state
+  private static readonly HEARTBEAT_INTERVAL = 25000 // 25s
+  private static readonly ACTIVITY_THROTTLE = (import.meta.env.VITE_ACTIVITY_THROTTLE_WINDOW ? Number(import.meta.env.VITE_ACTIVITY_THROTTLE_WINDOW) : 30) * 1000
+  private static unsubPresenceChanges: (() => void) | null = null
 
   /**
    * Initialize presence tracking for the current user
    */
   static async initialize(userId: string) {
     this.currentUserId = userId
-    
-    // Set user as online
-    await this.setOnline()
-    
-    // Start heartbeat
+    this.deviceId = this.getOrCreateDeviceId()
+
+    try {
+      // Establish connection
+      await this.invoke('presence-connect', { deviceId: this.deviceId })
+      // Mark immediate activity to get ONLINE and set TTLs
+      await this.invoke('presence-activity', { deviceId: this.deviceId })
+      this.isOnline = true
+    } catch (e) {
+      console.error('Presence initialize failed', e)
+    }
+
+    // Start heartbeat and listeners
     this.startHeartbeat()
-    
-    // Set up browser event listeners
     this.setupBrowserEventListeners()
-    
-    // Set up global presence channel
-    this.setupPresenceChannel()
+    this.subscribePresenceChanges()
   }
 
   /**
    * Clean up presence tracking
    */
   static async cleanup() {
-    if (this.currentUserId) {
-      await this.setOffline()
+    try {
+      if (this.currentUserId && this.deviceId) {
+        await this.invoke('presence-disconnect', { deviceId: this.deviceId })
+      }
+    } catch (e) {
+      // ignore
     }
-    
     this.stopHeartbeat()
     this.removeBrowserEventListeners()
     this.cleanupChannels()
-    
+    if (this.unsubPresenceChanges) {
+      this.unsubPresenceChanges()
+      this.unsubPresenceChanges = null
+    }
     this.currentUserId = null
+    this.deviceId = null
   }
 
   /**
    * Set user status to online
    */
   static async setOnline() {
-    if (!this.currentUserId) return
-    
+    if (!this.currentUserId || !this.deviceId) return
     try {
-      await AuthService.updateUserStatus(this.currentUserId, 'online')
-      this.broadcastPresence('online')
+      await this.invoke('presence-activity', { deviceId: this.deviceId })
       this.isOnline = true
-      this.lastHeartbeat = Date.now()
     } catch (error) {
       console.error('Failed to set user online:', error)
     }
@@ -74,11 +83,9 @@ export class PresenceService {
    * Set user status to offline
    */
   static async setOffline() {
-    if (!this.currentUserId) return
-    
+    if (!this.currentUserId || !this.deviceId) return
     try {
-      await AuthService.updateUserStatus(this.currentUserId, 'offline')
-      this.broadcastPresence('offline')
+      await this.invoke('presence-disconnect', { deviceId: this.deviceId })
       this.isOnline = false
     } catch (error) {
       console.error('Failed to set user offline:', error)
@@ -89,32 +96,21 @@ export class PresenceService {
    * Set user status to away
    */
   static async setAway() {
-    if (!this.currentUserId) return
-    
-    try {
-      await AuthService.updateUserStatus(this.currentUserId, 'away')
-      this.broadcastPresence('away')
-      this.isOnline = false
-    } catch (error) {
-      console.error('Failed to set user away:', error)
-    }
+    // For UX only; server transitions to AWAY upon TTL expiry.
+    this.isOnline = false
   }
 
   /**
    * Start heartbeat to maintain online status
    */
   private static startHeartbeat() {
-    this.stopHeartbeat() // Clear any existing heartbeat
-    
-    this.heartbeatInterval = setInterval(async () => {
-      if (this.currentUserId && this.isOnline) {
-        try {
-          await AuthService.updateUserStatus(this.currentUserId, 'online')
-          this.broadcastPresence('online')
-          this.lastHeartbeat = Date.now()
-        } catch (error) {
-          console.error('Heartbeat failed:', error)
-        }
+    this.stopHeartbeat()
+    this.heartbeatTimer = setInterval(async () => {
+      if (!this.currentUserId || !this.deviceId) return
+      try {
+        await this.invoke('presence-heartbeat', { deviceId: this.deviceId })
+      } catch (e) {
+        // ignore
       }
     }, this.HEARTBEAT_INTERVAL)
   }
@@ -123,9 +119,9 @@ export class PresenceService {
    * Stop heartbeat
    */
   private static stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval)
-      this.heartbeatInterval = null
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = null
     }
   }
 
@@ -133,15 +129,18 @@ export class PresenceService {
    * Set up browser event listeners for visibility and beforeunload
    */
   private static setupBrowserEventListeners() {
-    // Handle page visibility changes
+    // Page visibility
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
-    
-    // Handle page unload (browser close, refresh, navigation)
+    // Unload
     window.addEventListener('beforeunload', this.handleBeforeUnload)
-    
-    // Handle focus/blur events
+    // Focus/blur
     window.addEventListener('focus', this.handleFocus)
     window.addEventListener('blur', this.handleBlur)
+    // User activity
+    const activityEvents: (keyof DocumentEventMap | keyof WindowEventMap)[] = [
+      'mousemove', 'keydown', 'click', 'scroll', 'touchstart'
+    ]
+    activityEvents.forEach((evt) => window.addEventListener(evt as any, this.handleActivity, { passive: true }))
   }
 
   /**
@@ -152,6 +151,10 @@ export class PresenceService {
     window.removeEventListener('beforeunload', this.handleBeforeUnload)
     window.removeEventListener('focus', this.handleFocus)
     window.removeEventListener('blur', this.handleBlur)
+    const activityEvents: (keyof DocumentEventMap | keyof WindowEventMap)[] = [
+      'mousemove', 'keydown', 'click', 'scroll', 'touchstart'
+    ]
+    activityEvents.forEach((evt) => window.removeEventListener(evt as any, this.handleActivity))
   }
 
   /**
@@ -159,10 +162,9 @@ export class PresenceService {
    */
   private static handleVisibilityChange = () => {
     if (document.hidden) {
-      // Page is hidden, set to away
+      // Backgrounded; do not change server state immediately
       this.setAway()
     } else {
-      // Page is visible, set to online
       this.setOnline()
     }
   }
@@ -171,92 +173,72 @@ export class PresenceService {
    * Handle before page unload
    */
   private static handleBeforeUnload = () => {
-    // Broadcast offline status immediately
-    this.broadcastPresence('offline')
-    
-    // Try to update database (may not complete due to page unload)
-    if (this.currentUserId) {
-      // Use sendBeacon if available for more reliable delivery
+    if (!this.currentUserId || !this.deviceId) return
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const url = `${supabaseUrl}/functions/v1/presence-disconnect`
+      const payload = JSON.stringify({ deviceId: this.deviceId })
       if (navigator.sendBeacon) {
-        const data = JSON.stringify({
-          userId: this.currentUserId,
-          status: 'offline',
-          timestamp: new Date().toISOString()
-        })
-        
-        // Send to Supabase REST API
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        if (supabaseUrl) {
-          navigator.sendBeacon(
-            `${supabaseUrl}/rest/v1/users?id=eq.${this.currentUserId}`,
-            data
-          )
-        }
+        const blob = new Blob([payload], { type: 'application/json' })
+        navigator.sendBeacon(url, blob)
+      } else {
+        // Best effort
+        fetch(url, { method: 'POST', body: payload, keepalive: true, headers: { 'Content-Type': 'application/json' } })
       }
+    } catch {
+      // ignore
     }
   }
 
   /**
    * Handle window focus
    */
-  private static handleFocus = () => {
-    this.setOnline()
-  }
+  private static handleFocus = () => { this.setOnline() }
 
   /**
    * Handle window blur
    */
   private static handleBlur = () => {
-    // Don't immediately set to away on blur, wait a bit
-    setTimeout(() => {
-      if (!document.hasFocus()) {
-        this.setAway()
-      }
-    }, 5000) // 5 second delay
+    setTimeout(() => { if (!document.hasFocus()) this.setAway() }, 5000)
+  }
+
+  private static handleActivity = () => {
+    const now = Date.now()
+    if (!this.currentUserId || !this.deviceId) return
+    if (now - this.activityThrottleAt < this.ACTIVITY_THROTTLE) return
+    this.activityThrottleAt = now
+    this.setOnline()
   }
 
   /**
    * Set up global presence channel for real-time updates
    */
-  private static setupPresenceChannel() {
-    const channel = supabase.channel('presence', {
-      config: { broadcast: { ack: true } }
-    })
-
-    channel
-      .on('broadcast', { event: 'presence' }, (payload) => {
-        // Handle presence updates from other users
-        const { user_id, status, last_seen } = payload.payload as PresenceUser
-        
-        // Emit custom event for components to listen to
+  private static subscribePresenceChanges() {
+    // Stream table changes for presence_state; consumers can listen via custom event
+    const channel = supabase
+      .channel('presence-state')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'presence_state' }, (payload) => {
+        const row = payload.new || payload.old
+        if (!row) return
+        const status = (row.state as string)?.toLowerCase?.() || 'offline'
+        const last_seen = row.last_activity_at || row.changed_at
         window.dispatchEvent(new CustomEvent('presenceUpdate', {
-          detail: { user_id, status, last_seen }
+          detail: { user_id: row.user_id, status, last_seen }
         }))
       })
       .subscribe()
-
-    this.channels.set('presence', channel)
+    this.channels.set('presence-state', channel)
+    this.unsubPresenceChanges = () => {
+      supabase.removeChannel(channel)
+      this.channels.delete('presence-state')
+    }
   }
 
   /**
    * Broadcast presence status to other users
    */
-  private static broadcastPresence(status: 'online' | 'offline' | 'away') {
-    if (!this.currentUserId) return
-    
-    const channel = this.channels.get('presence')
-    if (channel) {
-      channel.send({
-        type: 'broadcast',
-        event: 'presence',
-        payload: {
-          user_id: this.currentUserId,
-          status,
-          last_seen: new Date().toISOString()
-        }
-      })
-    }
-  }
+  // broadcastPresence removed in favor of postgres changes; keep no-op for back-compat
+  private static broadcastPresence(_status: 'online' | 'offline' | 'away') { /* no-op */ }
 
   /**
    * Subscribe to presence updates for a specific user
@@ -265,25 +247,18 @@ export class PresenceService {
     userId: string,
     onPresenceUpdate: (presence: PresenceUser) => void
   ) {
-    const channel = supabase.channel(`presence:${userId}`, {
-      config: { broadcast: { ack: true } }
-    })
-
-    channel
-      .on('broadcast', { event: 'presence' }, (payload) => {
-        const presence = payload.payload as PresenceUser
-        if (presence.user_id === userId) {
-          onPresenceUpdate(presence)
-        }
+    const channel = supabase
+      .channel(`presence:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'presence_state', filter: `user_id=eq.${userId}` }, (payload) => {
+        const row = payload.new || payload.old
+        if (!row) return
+        const status = (row.state as string)?.toLowerCase?.() || 'offline'
+        const last_seen = row.last_activity_at || row.changed_at
+        onPresenceUpdate({ user_id: userId, status, last_seen })
       })
       .subscribe()
-
     this.channels.set(`presence:${userId}`, channel)
-
-    return () => {
-      supabase.removeChannel(channel)
-      this.channels.delete(`presence:${userId}`)
-    }
+    return () => { supabase.removeChannel(channel); this.channels.delete(`presence:${userId}`) }
   }
 
   /**
@@ -308,5 +283,23 @@ export class PresenceService {
    */
   static isUserOnline(): boolean {
     return this.isOnline
+  }
+
+  private static getOrCreateDeviceId(): string {
+    const key = 'presence_device_id'
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const id = crypto.randomUUID()
+    localStorage.setItem(key, id)
+    return id
+  }
+
+  // Wrapper to safely invoke Edge Functions in environments where functions may be mocked/absent
+  private static async invoke(name: string, body?: any) {
+    const anySb: any = supabase as any
+    if (anySb?.functions?.invoke) {
+      return anySb.functions.invoke(name, { body })
+    }
+    return Promise.resolve({ data: null })
   }
 }

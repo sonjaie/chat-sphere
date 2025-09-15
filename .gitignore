@@ -17,6 +17,7 @@ vite.config.ts.*
 .env.*.production
 .env.*.test
 .env.*.staging
+.env.*
 
 # Client environment files
 client/.env
@@ -103,3 +104,5 @@ public
 # Temporary folders
 tmp/
 temp/
+
+AGENTS.md

@@ -1,0 +1,13 @@
+# Ignore sensitive files
+.env
+.env.*
+*.key
+*.pem
+
+# Ignore common build artifacts
+node_modules/
+dist/
+build/
+vendor/
+tmp/
+.cache/

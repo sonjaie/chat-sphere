@@ -1,0 +1,69 @@
+# Cursor Rules (React, TypeScript or Next.js)
+
+## General Coding Rules
+- Act like a professional senior software developer
+-- Make design choices thoughtfully
+-- Prioritize scalability, readability, and long-term maintainability
+-- Consider performance and security in every implementation
+- Before writing new code, check if similar logic or structure already exists in the project
+-- Reuse existing code when possible
+-- If structure differs, create new clean and modular code instead of duplicating
+- Write clean, modular, and maintainable code
+- Use descriptive and meaningful names for variables, functions, and classes
+- Add comments for non-trivial logic or business rules
+- Always follow DRY (Don’t Repeat Yourself), KIS (Keep It Simple), and SOLID principles
+- Think about future developers who will read and maintain this code — keep it intuitive and self-explanatory
+
+## Project Awareness
+- Keep code consistent with the existing React + Laravel structure or Serverless + Next.js
+- Match coding style with the repo’s ESLint/Prettier (frontend) and PSR-12 (backend) rules
+
+## Frontend (React / Next.js)
+- Use functional components and React or Next.js Hooks
+- Reuse existing UI components; follow the design system
+- Use the project’s state management (Context API, Redux, Zustand, etc.)
+- Follow styling conventions (Tailwind, CSS Modules, or Styled Components)
+- Always validate props with PropTypes or TypeScript interfaces (if applicable)
+- Do not expose sensitive errors to users
+
+## Supabase
+- Always use Supabase client provided in the project (e.g., supabaseClient.ts)
+-- Do not re-initialize in multiple places
+- Manage schema changes with migrations (supabase/migrations/) instead of manual SQL in the dashboard
+-- Ensures consistency across environments
+- Store keys, URLs, and secrets in .env files
+-- Never hardcode credentials in the codebase
+- Use RLS (Row-Level Security) policies for multi-tenant data isolation
+-- Never rely solely on frontend validation
+- Prefer Supabase Auth and Policies over writing custom insecure checks
+- For heavy queries, use Supabase functions (Edge Functions) or backend endpoints (Laravel/Serverless)
+-- Keep sensitive logic server-side for better security
+- Cache or paginate results where possible
+-- Avoid performance issues when querying large tables
+- Log errors meaningfully (console + monitoring tool)
+-- Never leak database details to the frontend
+- Use TypeScript types generated from Supabase (supabase gen types)
+-- Prevent schema mismatch and runtime errors
+
+## Testing & Automation
+- Automate tests with PHPUnit (Laravel) and Jest/RTL (React)
+- If a test fails, update or refactor the code to fix functionality
+- Once functionality is verified, delete temporary automation/test files that are no longer needed
+- Keep only core regression tests in the repo
+- Run integration tests to confirm React or Next.js frontend correctly communicates with the backend
+- Prefer CI automation: run all tests on every push before merge
+
+## Performance & Security
+- React: use lazy loading and code splitting for dashboards
+- Laravel: use caching where possible (Redis, query cache)
+- Protect APIs with authentication (Sanctum/Passport)
+- Sanitize inputs and escape outputs to prevent XSS/SQL injection
+- Never hardcode secrets — always use .env and tenant-specific configs
+
+## Pro-Tips for AI
+- Always check if a utility, component, or function already exists before writing new ones
+- If unsure about project conventions, ask for clarification before generating
+- Suggest multiple valid approaches when there are trade-offs
+- Avoid hallucinating functions, packages, or APIs — verify they exist in the repo
+- When extending functionality, prefer extending existing utilities instead of rewriting
+- Always recommend writing or updating tests after code changes to ensure tenant functionality still works
