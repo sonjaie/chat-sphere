@@ -20,6 +20,7 @@ jobs:
           fi
           curl -sS -X POST "$VITE_SUPABASE_URL/functions/v1/presence-cron" \
             -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
             -H "Content-Type: application/json" \
             -d '{}' \
             -o /tmp/resp.json -w "HTTP:%{http_code}\n" | tee /tmp/status.txt
